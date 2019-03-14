@@ -33,8 +33,9 @@
       (fn [{:keys [data width height]}]
         (let [images (vec (for [i (range 5)]
                             (c/compile game (e/->image-entity game data width height
-                                                              {:x (* i koala-width) :y 0
-                                                               :width koala-width :height koala-height}))))
+                                                              {:crop-x (* i koala-width)
+                                                               :crop-width koala-width
+                                                               :crop-height koala-height}))))
               [stand jump walk1 walk2 walk3] images]
         ;; add it to the state
         (swap! *state update :player-images assoc
