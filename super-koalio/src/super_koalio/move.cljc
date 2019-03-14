@@ -80,16 +80,18 @@
 (defn animate
   [{:keys [total-time]}
    {:keys [x-velocity y-velocity direction
-           player-images player-image-key]
+           player-images player-walk-keys]
     :as state}]
   (let [direction (get-direction state)]
     (-> state
         (assoc :player-image-key
-               (if (and (not= x-velocity 0)
-                        (= y-velocity 0))
-                 (let [image-keys (->> player-images keys sort vec)
-                       cycle-time (mod total-time (* animation-secs (count image-keys)))]
-                   (nth image-keys (int (/ cycle-time animation-secs))))
-                 player-image-key))
+               (cond
+                 (not= y-velocity 0)
+                 :jump
+                 (not= x-velocity 0)
+                 (let [cycle-time (mod total-time (* animation-secs (count player-walk-keys)))]
+                   (nth player-walk-keys (int (/ cycle-time animation-secs))))
+                 :else
+                 :stand))
         (assoc :direction direction))))
 

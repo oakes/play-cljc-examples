@@ -17,26 +17,32 @@
                        :can-jump? false
                        :direction :right
                        :player-images {}
-                       :player-image-key :walk1}))
+                       :player-walk-keys [:walk1 :walk2 :walk3]
+                       :player-image-key :jump}))
+
+(def koala-width 18)
+(def koala-height 26)
 
 (defn init [game]
   ;; allow transparency in images
   (gl game enable (gl game BLEND))
   (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
   ;; load images and put them in the state atom
-  (doseq [[k path] {:walk1 "player_walk1.png"
-                    :walk2 "player_walk2.png"
-                    :walk3 "player_walk3.png"}]
+  (doseq [[k path] {:walk1 "koalio.png"}]
     (utils/get-image path
       (fn [{:keys [data width height]}]
-        (let [;; create an image entity (a map with info necessary to display it)
-              entity (e/->image-entity game data width height)
-              ;; compile the shaders so it is ready to render
-              entity (c/compile game entity)
-              ;; assoc the width and height to we can reference it later
-              entity (assoc entity :width width :height height)]
+        (let [images (vec (for [i (range 5)]
+                            (c/compile game (e/->image-entity game data width height
+                                                              {:x (* i koala-width) :y 0
+                                                               :width koala-width :height koala-height}))))
+              [stand jump walk1 walk2 walk3] images]
         ;; add it to the state
-        (swap! *state update :player-images assoc k entity))))))
+        (swap! *state update :player-images assoc
+               :stand stand
+               :jump jump
+               :walk1 walk1
+               :walk2 walk2
+               :walk3 walk3))))))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
@@ -58,8 +64,8 @@
                            assoc :width game-width :height game-height))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
-      (let [player-width (/ game-width 10)
-            player-height (* player-width (/ (:height player) (:width player)))]
+      (let [player-width (/ game-width 30)
+            player-height (* player-width (/ koala-height koala-width))]
         ;; render the player
         (c/render game
           (-> player
