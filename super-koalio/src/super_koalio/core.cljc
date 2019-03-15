@@ -1,11 +1,16 @@
 (ns super-koalio.core
   (:require [super-koalio.utils :as utils]
             [super-koalio.move :as move]
+            [super-koalio.tile :as tile]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
-               :cljs [play-cljc.macros-js :refer-macros [gl math]])))
+               :cljs [play-cljc.macros-js :refer-macros [gl math]])
+            #?(:clj  [super-koalio.tile :refer [read-tiled-map]]
+               :cljs [super-koalio.tile :refer-macros [read-tiled-map]])))
+
+(tile/parse-map (read-tiled-map "level1.tmx"))
 
 (defonce *state (atom {:mouse-x 0
                        :mouse-y 0
@@ -38,12 +43,12 @@
                                                                :crop-height koala-height}))))
               [stand jump walk1 walk2 walk3] images]
         ;; add it to the state
-        (swap! *state update :player-images assoc
-               :stand stand
-               :jump jump
-               :walk1 walk1
-               :walk2 walk2
-               :walk3 walk3))))))
+         (swap! *state update :player-images assoc
+                :stand stand
+                :jump jump
+                :walk1 walk1
+                :walk2 walk2
+                :walk3 walk3))))))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
