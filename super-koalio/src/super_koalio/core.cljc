@@ -1,16 +1,11 @@
 (ns super-koalio.core
   (:require [super-koalio.utils :as utils]
             [super-koalio.move :as move]
-            [super-koalio.tile :as tile]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
-               :cljs [play-cljc.macros-js :refer-macros [gl math]])
-            #?(:clj  [super-koalio.tile :refer [read-tiled-map]]
-               :cljs [super-koalio.tile :refer-macros [read-tiled-map]])))
-
-(tile/parse-map (read-tiled-map "level1.tmx"))
+               :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
 (defonce *state (atom {:mouse-x 0
                        :mouse-y 0
