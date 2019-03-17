@@ -28,13 +28,12 @@
 (def tiled-map (ts/parse tiled-xml))
 (def map-width (-> tiled-map :attrs :width))
 (def map-height (-> tiled-map :attrs :height))
-(def tiled-ids (->> tiled-map :content
-                    (filter #(= :layer (:tag %)))
-                    first
-                    :content
-                    first
-                    :content
-                    first))
+(def map-layers (->> tiled-map :content
+                     (filter #(= :layer (:tag %)))
+                     (map #(vector
+                             (-> % :attrs :name)
+                             (-> % :content first :content first)))
+                     (into {})))
 
 (def koala-width 18)
 (def koala-height 26)
