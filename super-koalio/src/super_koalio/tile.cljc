@@ -18,8 +18,6 @@
               tiles-vert (/ height tileheight)
               tiles-horiz (/ width tilewidth)]
           (swap! *state assoc
-            :tiles-horiz tiles-horiz
-            :tiles-vert tiles-vert
             :tiled-map-images
             (vec
               (for [y (range tiles-vert)

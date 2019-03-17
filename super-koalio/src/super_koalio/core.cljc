@@ -28,6 +28,7 @@
 (def tiled-map (ts/parse tiled-xml))
 (def map-width (-> tiled-map :attrs :width))
 (def map-height (-> tiled-map :attrs :height))
+
 (def map-layers (->> tiled-map :content
                      (filter #(= :layer (:tag %)))
                      (map #(vector
@@ -70,7 +71,7 @@
 (def transform-tile
   (memoize
     (fn [tile x y game-width game-height]
-      (let [tile-size (/ game-width 30)]
+      (let [tile-size (/ game-height 20)]
         (-> tile
             (t/project game-width game-height)
             (t/translate (* x tile-size) (* y tile-size))
@@ -84,8 +85,6 @@
                 direction
                 player-images
                 player-image-key
-                tiles-horiz
-                tiles-vert
                 tiled-map-images]
          :as state} @*state
         game-width (utils/get-width game)
@@ -94,14 +93,18 @@
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
     ;; render the tiled map
-    (doseq [i (range (count tiled-map-images))
-            :let [x (mod i tiles-vert)
-                  y (int (/ i tiles-horiz))
-                  image (nth tiled-map-images i)]]
-      (c/render game (transform-tile image x y game-width game-height)))
+    (doseq [layer ["background" "walls"]]
+      (when-let [walls (get map-layers layer)]
+        (doseq [i (range (count walls))
+                :let [x (mod i map-width)
+                      y (int (/ i map-width))
+                      id (dec (nth walls i))]
+                :when (>= id 0)]
+          (let [image (nth tiled-map-images id)]
+            (c/render game (transform-tile image x y game-width game-height))))))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
-      (let [player-width  (/ game-width 30)
+      (let [player-width  (/ game-height 20)
             player-height (* player-width (/ koala-height koala-width))]
         ;; render the player
         (c/render game
