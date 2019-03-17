@@ -69,11 +69,11 @@
 
 (def transform-tile
   (memoize
-    (fn [tile row col game-width game-height]
+    (fn [tile x y game-width game-height]
       (let [tile-size (/ game-width 30)]
         (-> tile
             (t/project game-width game-height)
-            (t/translate (* row tile-size) (* col tile-size))
+            (t/translate (* x tile-size) (* y tile-size))
             (t/scale tile-size tile-size))))))
 
 (defn run [game]
@@ -84,6 +84,8 @@
                 direction
                 player-images
                 player-image-key
+                tiles-horiz
+                tiles-vert
                 tiled-map-images]
          :as state} @*state
         game-width (utils/get-width game)
@@ -93,10 +95,10 @@
                            assoc :width game-width :height game-height))
     ;; render the tiled map
     (doseq [i (range (count tiled-map-images))
-            :let [row (nth tiled-map-images i)]]
-      (doseq [j (range (count row))
-              :let [image (nth row j)]]
-        (c/render game (transform-tile image i j game-width game-height))))
+            :let [x (mod i tiles-vert)
+                  y (int (/ i tiles-horiz))
+                  image (nth tiled-map-images i)]]
+      (c/render game (transform-tile image x y game-width game-height)))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
       (let [player-width  (/ game-width 30)
@@ -108,17 +110,17 @@
               (t/translate (cond-> player-x
                                    (= direction :left)
                                    (+ player-width))
-                           player-y)
+                player-y)
               (t/scale (cond-> player-width
                                (= direction :left)
                                (* -1))
-                       player-height)))
+                player-height)))
         ;; change the state to move the player
         (swap! *state
           (fn [state]
             (->> (assoc state
-                        :player-width player-width
-                        :player-height player-height)
+                   :player-width player-width
+                   :player-height player-height)
                  (move/move game)
                  (move/prevent-move game)
                  (move/animate game)))))))

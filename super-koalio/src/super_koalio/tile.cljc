@@ -14,16 +14,20 @@
         {{:keys [tilewidth tileheight]} :attrs} tileset]
     (utils/get-image (-> image :attrs :source)
       (fn [{:keys [data width height]}]
-        (let [entity (c/compile game (e/->image-entity game data width height))]
-          (swap! *state assoc :tiled-map-images
+        (let [entity (c/compile game (e/->image-entity game data width height))
+              tiles-vert (/ height tileheight)
+              tiles-horiz (/ width tilewidth)]
+          (swap! *state assoc
+            :tiles-horiz tiles-horiz
+            :tiles-vert tiles-vert
+            :tiled-map-images
             (vec
-              (for [col (range (/ width tilewidth))]
-                (vec
-                  (for [row (range (/ height tileheight))]
-                    (t/crop entity
-                      (* col tilewidth)
-                      (* row tileheight)
-                      tilewidth
-                      tileheight)))))))))))
+              (for [y (range tiles-vert)
+                    x (range tiles-horiz)]
+                (t/crop entity
+                  (* x tilewidth)
+                  (* y tileheight)
+                  tilewidth
+                  tileheight)))))))))
             
 
