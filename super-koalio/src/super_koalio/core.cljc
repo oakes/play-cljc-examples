@@ -1,11 +1,14 @@
 (ns super-koalio.core
   (:require [super-koalio.utils :as utils]
             [super-koalio.move :as move]
+            [tile-soup.core :as ts]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
-               :cljs [play-cljc.macros-js :refer-macros [gl math]])))
+               :cljs [play-cljc.macros-js :refer-macros [gl math]])
+            #?(:clj  [super-koalio.tile :as tile :refer [read-tiled-map]]
+               :cljs [super-koalio.tile :as tile :refer-macros [read-tiled-map]])))
 
 (defonce *state (atom {:mouse-x 0
                        :mouse-y 0
@@ -18,7 +21,20 @@
                        :direction :right
                        :player-images {}
                        :player-walk-keys [:walk1 :walk2 :walk3]
-                       :player-image-key :jump}))
+                       :player-image-key :jump
+                       :tiled-map-images nil}))
+
+(def tiled-xml (read-tiled-map "level1.tmx"))
+(def tiled-map (ts/parse tiled-xml))
+(def map-width (-> tiled-map :attrs :width))
+(def map-height (-> tiled-map :attrs :height))
+(def tiled-ids (->> tiled-map :content
+                    (filter #(= :layer (:tag %)))
+                    first
+                    :content
+                    first
+                    :content
+                    first))
 
 (def koala-width 18)
 (def koala-height 26)
@@ -27,23 +43,26 @@
   ;; allow transparency in images
   (gl game enable (gl game BLEND))
   (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
-  ;; load images and put them in the state atom
-  (doseq [[k path] {:walk1 "koalio.png"}]
-    (utils/get-image path
-      (fn [{:keys [data width height]}]
-        (let [images (vec (for [i (range 5)]
-                            (c/compile game (e/->image-entity game data width height
-                                                              {:crop-x (* i koala-width)
-                                                               :crop-width koala-width
-                                                               :crop-height koala-height}))))
-              [stand jump walk1 walk2 walk3] images]
+  ;; load koalio image
+  (utils/get-image "koalio.png"
+    (fn [{:keys [data width height]}]
+      (let [images (vec (for [i (range 5)]
+                          (c/compile game (t/crop
+                                            (e/->image-entity game data width height)
+                                            (* i koala-width)
+                                            0
+                                            koala-width
+                                            koala-height))))
+            [stand jump walk1 walk2 walk3] images]
         ;; add it to the state
-         (swap! *state update :player-images assoc
-                :stand stand
-                :jump jump
-                :walk1 walk1
-                :walk2 walk2
-                :walk3 walk3))))))
+        (swap! *state update :player-images assoc
+          :stand stand
+          :jump jump
+          :walk1 walk1
+          :walk2 walk2
+          :walk3 walk3))))
+  ;; load the tiled map
+  (tile/load-tiled-map game tiled-map *state))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
@@ -56,16 +75,28 @@
                 player-y
                 direction
                 player-images
-                player-image-key]
+                player-image-key
+                tiled-map-images]
          :as state} @*state
         game-width (utils/get-width game)
-        game-height (utils/get-height game)]
+        game-height (utils/get-height game)
+        tile-size (/ game-width 30)]
     ;; render the blue background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
+    ;; render the tiled map
+    (doseq [i (range (count tiled-map-images))
+            :let [row (nth tiled-map-images i)]]
+      (doseq [j (range (count row))
+              :let [image (nth row j)]]
+        (c/render game
+          (-> image
+              (t/project game-width game-height)
+              (t/translate (* i tile-size) (* j tile-size))
+              (t/scale tile-size tile-size)))))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
-      (let [player-width (/ game-width 30)
+      (let [player-width tile-size
             player-height (* player-width (/ koala-height koala-width))]
         ;; render the player
         (c/render game
