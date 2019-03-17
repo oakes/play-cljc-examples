@@ -70,12 +70,11 @@
 
 (def transform-tile
   (memoize
-    (fn [tile x y game-width game-height]
-      (let [tile-size (/ game-height 20)]
-        (-> tile
-            (t/project game-width game-height)
-            (t/translate (* x tile-size) (* y tile-size))
-            (t/scale tile-size tile-size))))))
+    (fn [tile x y game-width game-height tile-size]
+      (-> tile
+          (t/project game-width game-height)
+          (t/translate (* x tile-size) (* y tile-size))
+          (t/scale tile-size tile-size)))))
 
 (defn run [game]
   (let [{:keys [entities
@@ -88,7 +87,8 @@
                 tiled-map-images]
          :as state} @*state
         game-width (utils/get-width game)
-        game-height (utils/get-height game)]
+        game-height (utils/get-height game)
+        tile-size (/ game-height map-height)]
     ;; render the blue background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
@@ -99,12 +99,13 @@
                 :let [x (mod i map-width)
                       y (int (/ i map-width))
                       id (dec (nth walls i))]
-                :when (>= id 0)]
+                :when (and (>= id 0)
+                           (<= x (* map-width tile-size)))]
           (let [image (nth tiled-map-images id)]
-            (c/render game (transform-tile image x y game-width game-height))))))
+            (c/render game (transform-tile image x y game-width game-height tile-size))))))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
-      (let [player-width  (/ game-height 20)
+      (let [player-width  tile-size
             player-height (* player-width (/ koala-height koala-width))]
         ;; render the player
         (c/render game
