@@ -46,13 +46,13 @@
   ;; load koalio image
   (utils/get-image "koalio.png"
     (fn [{:keys [data width height]}]
-      (let [images (vec (for [i (range 5)]
-                          (c/compile game (t/crop
-                                            (e/->image-entity game data width height)
-                                            (* i koala-width)
-                                            0
-                                            koala-width
-                                            koala-height))))
+      (let [entity (c/compile game (e/->image-entity game data width height))
+            images (vec (for [i (range 5)]
+                          (t/crop entity
+                             (* i koala-width)
+                             0
+                             koala-width
+                             koala-height)))
             [stand jump walk1 walk2 walk3] images]
         ;; add it to the state
         (swap! *state update :player-images assoc
