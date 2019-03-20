@@ -9,20 +9,18 @@
 #?(:clj (defmacro read-tiled-map [fname]
           (slurp (io/resource (str "public/" fname)))))
 
-(def transform-tile
-  (memoize
-    (fn [tile x y game-width game-height tile-size]
-      (-> tile
-          (t/project game-width game-height)
-          (t/translate (* x tile-size) (* y tile-size))
-          (t/scale tile-size tile-size)))))
+(defn transform-tile [tile x y game-width game-height tile-size]
+  (-> tile
+      (t/project game-width game-height)
+      (t/translate (* x tile-size) (* y tile-size))
+      (t/scale tile-size tile-size)))
 
 (def flip-y-matrix
   [1  0  0
    0 -1  0
    0  0  1])
 
-(defn load-tiled-map [game parsed *state]
+(defn load-tiled-map [game parsed callback]
   (let [map-width (-> parsed :attrs :width)
         map-height (-> parsed :attrs :height)
         tileset (first (filter #(= :tileset (:tag %)) (:content parsed)))
@@ -50,8 +48,7 @@
                            (* y tileheight)
                            tilewidth
                            tileheight)))]
-          (swap! *state assoc
-            :tiled-map-entity
+          (callback
             (update-in
               (c/compile game
                 (assoc outer-entity

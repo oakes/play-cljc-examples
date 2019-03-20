@@ -54,7 +54,8 @@
           :walk2 walk2
           :walk3 walk3))))
   ;; load the tiled map
-  (tile/load-tiled-map game tiled-map *state))
+  (tile/load-tiled-map game tiled-map
+    #(swap! *state assoc :tiled-map-entity %)))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
