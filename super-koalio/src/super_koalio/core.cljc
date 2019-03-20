@@ -22,19 +22,11 @@
                        :player-images {}
                        :player-walk-keys [:walk1 :walk2 :walk3]
                        :player-image-key :jump
-                       :tiled-map-images nil}))
+                       :tiled-map-entity nil}))
 
-(def tiled-xml (read-tiled-map "level1.tmx"))
+(defonce tiled-xml (read-tiled-map "level1.tmx"))
 (def tiled-map (ts/parse tiled-xml))
-(def map-width (-> tiled-map :attrs :width))
 (def map-height (-> tiled-map :attrs :height))
-
-(def map-layers (->> tiled-map :content
-                     (filter #(= :layer (:tag %)))
-                     (map #(vector
-                             (-> % :attrs :name)
-                             (-> % :content first :content first)))
-                     (into {})))
 
 (def koala-width 18)
 (def koala-height 26)
@@ -68,14 +60,6 @@
   {:viewport {:x 0 :y 0 :width 0 :height 0}
    :clear {:color [(/ 173 255) (/ 216 255) (/ 230 255) 1] :depth 1}})
 
-(def transform-tile
-  (memoize
-    (fn [tile x y game-width game-height tile-size]
-      (-> tile
-          (t/project game-width game-height)
-          (t/translate (* x tile-size) (* y tile-size))
-          (t/scale tile-size tile-size)))))
-
 (defn run [game]
   (let [{:keys [entities
                 pressed-keys
@@ -84,28 +68,25 @@
                 direction
                 player-images
                 player-image-key
-                tiled-map-images]
+                tiled-map-entity]
          :as state} @*state
         game-width (utils/get-width game)
-        game-height (utils/get-height game)
-        tile-size (/ game-height map-height)]
+        game-height (utils/get-height game)]
     ;; render the blue background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
     ;; render the tiled map
-    (doseq [layer ["background" "walls"]]
-      (when-let [walls (get map-layers layer)]
-        (doseq [i (range (count walls))
-                :let [x (mod i map-width)
-                      y (int (/ i map-width))
-                      id (dec (nth walls i))]
-                :when (and (>= id 0)
-                           (<= x (* map-width tile-size)))]
-          (let [image (nth tiled-map-images id)]
-            (c/render game (transform-tile image x y game-width game-height tile-size))))))
+    (when tiled-map-entity
+      (c/render game (-> tiled-map-entity
+                         (t/project game-width game-height)
+                         (t/scale
+                           (* (/ (:width tiled-map-entity)
+                                 (:height tiled-map-entity))
+                              game-width)
+                           game-height))))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
-      (let [player-width  tile-size
+      (let [player-width  (/ game-height map-height)
             player-height (* player-width (/ koala-height koala-width))]
         ;; render the player
         (c/render game
