@@ -17,11 +17,13 @@
                        :y-velocity 0
                        :player-x 0
                        :player-y 0
+                       :player-offset 0
                        :can-jump? false
                        :direction :right
                        :player-images {}
                        :player-walk-keys [:walk1 :walk2 :walk3]
                        :player-image-key :jump
+                       :tiled-map nil
                        :tiled-map-entity nil}))
 
 (defonce tiled-xml (read-tiled-map "level1.tmx"))
@@ -55,7 +57,8 @@
           :walk3 walk3))))
   ;; load the tiled map
   (tile/load-tiled-map game tiled-map
-    #(swap! *state assoc :tiled-map-entity %)))
+    (fn [tiled-map entity]
+      (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity))))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
@@ -90,12 +93,12 @@
     (when-let [player (get player-images player-image-key)]
       (let [player-width  (/ game-height map-height)
             player-height (* player-width (/ koala-height koala-width))
-            middle-x (/ game-width 2)]
+            player-offset (/ game-width 2)]
         ;; render the player
         (c/render game
           (-> player
               (t/project game-width game-height)
-              (t/translate (cond-> middle-x
+              (t/translate (cond-> player-offset
                                    (= direction :left)
                                    (+ player-width))
                 player-y)
@@ -107,10 +110,13 @@
         (swap! *state
           (fn [state]
             (->> (assoc state
+                   :game-width game-width
+                   :game-height game-height
                    :player-width player-width
-                   :player-height player-height)
+                   :player-height player-height
+                   :player-offset player-offset)
                  (move/move game)
-                 (move/prevent-move game)
+                 (move/prevent-move)
                  (move/animate game)))))))
   ;; return the game map
   game)

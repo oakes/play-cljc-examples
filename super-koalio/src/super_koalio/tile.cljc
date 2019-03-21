@@ -49,8 +49,20 @@
                            (* x tilewidth)
                            (* y tileheight)
                            tilewidth
-                           tileheight)))]
+                           tileheight)))
+              partitioned-layers (reduce-kv
+                                   (fn [m k v]
+                                     (assoc m k (->> v
+                                                     (partition map-width)
+                                                     (mapv vec))))
+                                   {}
+                                   layers)]
           (callback
+            {:layers partitioned-layers
+             :map-width map-width
+             :map-height map-height
+             :tile-width tilewidth
+             :tile-height tileheight}
             (update-in
               (c/compile game
                 (assoc outer-entity
@@ -68,4 +80,19 @@
                             (transform-tile image x y entity-width entity-height tile-size))))}))
               [:uniforms 'u_matrix]
               #(m/multiply-matrices 3 flip-y-matrix %))))))))
+
+(defn touching-tile? [{:keys [layers map-width map-height tile-width tile-height]}
+                      layer-name game-height x y width height]
+  (let [layer (get layers layer-name)
+        ratio (/ (* map-height tile-height)
+                 game-height)
+        [x y width height] (mapv #(* % ratio) [x y width height])
+        start-x (int (/ x tile-width))
+        start-y (int (/ y tile-height))
+        end-x (inc (int (/ (+ x width) tile-width)))
+        end-y (int (/ (+ y height) tile-height))
+        tiles (for [tile-x (range start-x end-x)
+                    tile-y (range end-y start-y -1)]
+                (get-in layer [tile-y tile-x]))]
+    (some? (first (filter pos? (remove nil? tiles))))))
 
