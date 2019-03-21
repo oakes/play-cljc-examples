@@ -6,9 +6,9 @@
 
 (def ^:const damping 0.1)
 (def ^:const max-velocity 1000)
-(def ^:const max-jump-velocity (* max-velocity 10))
+(def ^:const max-jump-velocity (* max-velocity 8))
 (def ^:const deceleration 0.7)
-(def ^:const gravity 300)
+(def ^:const gravity 500)
 (def ^:const animation-secs 0.2)
 
 (defn decelerate
@@ -45,9 +45,12 @@
     direction))
 
 (defn move
-  [{:keys [delta-time] :as game} {:keys [player-x player-y can-jump?] :as state}]
+  [{:keys [delta-time] :as game} {:keys [player-x player-y can-jump? started?] :as state}]
   (let [x-velocity (get-x-velocity state)
-        y-velocity (+ (get-y-velocity state) gravity)
+        y-velocity (+ (get-y-velocity state) (if started?
+                                               gravity
+                                               ;; initially make the gravity lower so koalio floats down
+                                               100))
         x-change (* x-velocity delta-time)
         y-change (* y-velocity delta-time)]
     (if (or (not= 0 x-change) (not= 0 y-change))
@@ -75,7 +78,8 @@
       (when (tile/touching-tile? tiled-map "walls" game-height (+ player-x player-offset) old-y player-width player-height)
         {:x-velocity 0 :x-change 0 :player-x old-x})
       (when (tile/touching-tile? tiled-map "walls" game-height (+ old-x player-offset) player-y player-width player-height)
-        {:y-velocity 0 :y-change 0 :player-y old-y :can-jump? (not up?)}))))
+        {:y-velocity 0 :y-change 0 :player-y old-y
+         :can-jump? (not up?) :started? true}))))
 
 (defn animate
   [{:keys [total-time]}

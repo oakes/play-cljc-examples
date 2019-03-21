@@ -19,6 +19,7 @@
                        :player-y 0
                        :player-offset 0
                        :can-jump? false
+                       :started? false
                        :direction :right
                        :player-images {}
                        :player-walk-keys [:walk1 :walk2 :walk3]
