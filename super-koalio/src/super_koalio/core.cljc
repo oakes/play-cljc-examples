@@ -80,6 +80,7 @@
     (when tiled-map-entity
       (c/render game (-> tiled-map-entity
                          (t/project game-width game-height)
+                         (t/translate (- player-x) 0)
                          (t/scale
                            (* (/ (:width tiled-map-entity)
                                  (:height tiled-map-entity))
@@ -88,12 +89,13 @@
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
       (let [player-width  (/ game-height map-height)
-            player-height (* player-width (/ koala-height koala-width))]
+            player-height (* player-width (/ koala-height koala-width))
+            middle-x (/ game-width 2)]
         ;; render the player
         (c/render game
           (-> player
               (t/project game-width game-height)
-              (t/translate (cond-> player-x
+              (t/translate (cond-> middle-x
                                    (= direction :left)
                                    (+ player-width))
                 player-y)

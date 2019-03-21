@@ -68,12 +68,8 @@
   (let [old-x (- player-x x-change)
         old-y (- player-y y-change)
         up? (neg? y-change)
-        game-width (utils/get-width game)
         game-height (utils/get-height game)]
     (merge state
-      (when (or (< player-x 0)
-                (> player-x (- game-width player-width)))
-        {:x-velocity 0 :x-change 0 :player-x old-x})
       (when (> player-y (- game-height player-height))
         {:y-velocity 0 :y-change 0 :player-y old-y :can-jump? (not up?)}))))
 
