@@ -9,9 +9,9 @@
 #?(:clj (defmacro read-tiled-map [fname]
           (slurp (io/resource (str "public/" fname)))))
 
-(defn transform-tile [tile x y game-width game-height tile-size]
+(defn transform-tile [tile x y width height tile-size]
   (-> tile
-      (t/project game-width game-height)
+      (t/project width height)
       (t/translate (* x tile-size) (* y tile-size))
       (t/scale tile-size tile-size)))
 
@@ -34,10 +34,12 @@
                     (into {}))]
     (utils/get-image (-> image :attrs :source)
       (fn [{:keys [data width height]}]
-        (let [outer-entity (e/->image-entity game nil width height)
-              tile-size (/ height map-height)
+        (let [tile-size (/ height map-height)
+              entity-width (* tile-size map-width)
+              entity-height (* tile-size map-height)
+              outer-entity (e/->image-entity game nil entity-width entity-height)
               inner-entity (c/compile game (-> (e/->image-entity game data width height)
-                                               (assoc :viewport {:x 0 :y 0 :width width :height height})))
+                                               (assoc :viewport {:x 0 :y 0 :width entity-width :height entity-height})))
               tiles-vert (/ height tileheight)
               tiles-horiz (/ width tilewidth)
               images (vec
@@ -52,8 +54,8 @@
             (update-in
               (c/compile game
                 (assoc outer-entity
-                  :width width
-                  :height height
+                  :width entity-width
+                  :height entity-height
                   :render-to-texture
                   {'u_image
                    (vec (for [layer ["background" "walls"]
@@ -63,7 +65,7 @@
                                     id (dec (nth (get layers layer) i))]
                               :when (>= id 0)]
                           (let [image (nth images id)]
-                            (transform-tile image x y width height tile-size))))}))
+                            (transform-tile image x y entity-width entity-height tile-size))))}))
               [:uniforms 'u_matrix]
               #(m/multiply-matrices 3 flip-y-matrix %))))))))
 
