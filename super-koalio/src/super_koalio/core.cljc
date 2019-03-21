@@ -83,7 +83,7 @@
                          (t/scale
                            (* (/ (:width tiled-map-entity)
                                  (:height tiled-map-entity))
-                              game-width)
+                              game-height)
                            game-height))))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
