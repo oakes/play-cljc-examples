@@ -1,17 +1,26 @@
 (ns dungeon-crawler.core
   (:require [dungeon-crawler.utils :as utils]
             [dungeon-crawler.move :as move]
+            [tile-soup.core :as ts]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
-               :cljs [play-cljc.macros-js :refer-macros [gl math]])))
-
+               :cljs [play-cljc.macros-js :refer-macros [gl math]])
+            #?(:clj  [dungeon-crawler.tile :as tile :refer [read-tiled-map]]
+               :cljs [dungeon-crawler.tile :as tile :refer-macros [read-tiled-map]])))
+  
 (defonce *state (atom {:mouse-x 0
                        :mouse-y 0
                        :mouse-button nil
                        :pressed-keys #{}
-                       :characters {}}))
+                       :characters {}
+                       :tiled-map nil
+                       :tiled-map-entity nil}))
+
+(defonce tiled-xml (read-tiled-map "level1.tmx"))
+(def tiled-map (ts/parse tiled-xml))
+(def map-height (-> tiled-map :attrs :height))
 
 (defn create-grid [image tile-size mask-size]
   (let [offset (-> tile-size (- mask-size) (/ 2))]
@@ -55,7 +64,11 @@
                          :x-velocity 0
                          :y-velocity 0}]
           ;; add it to the state
-          (swap! *state update :characters assoc k character))))))
+          (swap! *state update :characters assoc k character)))))
+  ;; load the tiled map
+  (tile/load-tiled-map game tiled-map
+    (fn [tiled-map entity]
+      (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity))))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
@@ -63,13 +76,24 @@
 
 (defn run [game]
   (let [{:keys [pressed-keys
-                characters]
+                characters
+                tiled-map-entity]
          :as state} @*state
         game-width (utils/get-width game)
         game-height (utils/get-height game)]
     ;; render the background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
+    ;; render the tiled map
+    (when tiled-map-entity
+      (c/render game (-> tiled-map-entity
+                         (t/project game-width game-height)
+                         (t/translate 0 0)
+                         (t/scale
+                           (* (/ (:width tiled-map-entity)
+                                 (:height tiled-map-entity))
+                              game-height)
+                           game-height))))
     ;; get the current player image to display
     (when-let [player (:player characters)]
       ;; render the player
