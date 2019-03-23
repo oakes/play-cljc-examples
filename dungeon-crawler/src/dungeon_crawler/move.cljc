@@ -19,25 +19,39 @@
       0
       velocity)))
 
-(defn get-x-velocity
-  [{:keys [pressed-keys]} {:keys [x-velocity]}]
-  (cond
-    (contains? pressed-keys :left)
-    (* -1 max-velocity)
-    (contains? pressed-keys :right)
-    max-velocity
-    :else
-    x-velocity))
-
-(defn get-y-velocity
-  [{:keys [pressed-keys]} {:keys [y-velocity]}]
-  (cond
-    (contains? pressed-keys :up)
-    (* -1 max-velocity)
-    (contains? pressed-keys :down)
-    max-velocity
-    :else
-    y-velocity))
+(defn get-player-velocity
+  [game
+   {:keys [pressed-keys mouse-button mouse-x mouse-y]}
+   {:keys [x y x-velocity y-velocity]}]
+  (if mouse-button
+    (let [;x (- mouse-x (/ (utils/get-width game) 2))
+          ;y (- mouse-y (/ (utils/get-height game) 2))
+          x (- mouse-x x)
+          y (- mouse-y y)
+          x-adjust (if (= y 0)
+                     0
+                     (* max-velocity (math abs (/ x y))))
+          y-adjust (if (= x 0)
+                     0
+                     (* max-velocity (math abs (/ y x))))]
+      [(* (math #?(:clj signum :cljs sign) x)
+          (min max-velocity x-adjust))
+       (* (math #?(:clj signum :cljs sign) y)
+          (min max-velocity y-adjust))])
+    [(cond
+       (contains? pressed-keys :left)
+       (* -1 max-velocity)
+       (contains? pressed-keys :right)
+       max-velocity
+       :else
+       x-velocity)
+     (cond
+       (contains? pressed-keys :up)
+       (* -1 max-velocity)
+       (contains? pressed-keys :down)
+       max-velocity
+       :else
+       y-velocity)]))
 
 (defn get-direction
   [x-velocity y-velocity]
@@ -51,18 +65,17 @@
 
 (defn move
   [{:keys [delta-time] :as game} state {:keys [x y] :as character}]
-  (let [x-velocity (get-x-velocity state character)
-        y-velocity (get-y-velocity state character)
+  (let [[x-velocity y-velocity] (get-player-velocity game state character)
         x-change (* x-velocity delta-time)
         y-change (* y-velocity delta-time)]
     (if (or (not= 0 x-change) (not= 0 y-change))
       (assoc character
-             :x-velocity (decelerate x-velocity)
-             :y-velocity (decelerate y-velocity)
-             :x-change x-change
-             :y-change y-change
-             :x (+ x x-change)
-             :y (+ y y-change))
+        :x-velocity (decelerate x-velocity)
+        :y-velocity (decelerate y-velocity)
+        :x-change x-change
+        :y-change y-change
+        :x (+ x x-change)
+        :y (+ y y-change))
       character)))
 
 (defn prevent-move

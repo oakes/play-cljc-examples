@@ -1,11 +1,18 @@
 (ns dungeon-crawler.start
   (:require [dungeon-crawler.core :as c]
             [play-cljc.gl.core :as pc])
-  (:import  [org.lwjgl.glfw GLFW Callbacks GLFWCursorPosCallbackI GLFWKeyCallbackI]
+  (:import  [org.lwjgl.glfw GLFW Callbacks
+             GLFWCursorPosCallbackI GLFWKeyCallbackI GLFWMouseButtonCallbackI]
             [org.lwjgl.opengl GL GL41]
             [org.lwjgl.system MemoryUtil]
             [javax.sound.sampled AudioSystem Clip])
   (:gen-class))
+
+(defn mousecode->keyword [mousecode]
+  (condp = mousecode
+    GLFW/GLFW_MOUSE_BUTTON_LEFT :left
+    GLFW/GLFW_MOUSE_BUTTON_RIGHT :right
+    nil))
 
 (defn listen-for-mouse [window]
   (GLFW/glfwSetCursorPosCallback window
@@ -31,7 +38,14 @@
               (MemoryUtil/memFree *fb-height)
               (MemoryUtil/memFree *window-width)
               (MemoryUtil/memFree *window-height)
-              (assoc state :mouse-x x :mouse-y y))))))))
+              (assoc state :mouse-x x :mouse-y y)))))))
+  (GLFW/glfwSetMouseButtonCallback window
+    (reify GLFWMouseButtonCallbackI
+      (invoke [this window button action mods]
+        (swap! c/*state
+          (fn [state]
+            (assoc state :mouse-button (when (= action GLFW/GLFW_PRESS)
+                                         (mousecode->keyword button)))))))))
 
 (defn keycode->keyword [keycode]
   (condp = keycode
