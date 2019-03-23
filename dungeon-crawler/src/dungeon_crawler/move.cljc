@@ -4,11 +4,13 @@
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
 (def ^:const damping 0.1)
-(def ^:const max-velocity 1000)
-(def ^:const max-jump-velocity (* max-velocity 8))
+(def ^:const max-velocity 500)
 (def ^:const deceleration 0.7)
-(def ^:const gravity 500)
 (def ^:const animation-secs 0.2)
+(def ^:const directions [:w :nw :n :ne
+                         :e :se :s :sw])
+(def ^:const velocities [[-1 0] [-1 -1] [0 -1] [1 -1]
+                         [1 0] [1 1] [0 1] [-1 1]])
 
 (defn decelerate
   [velocity]
@@ -18,7 +20,7 @@
       velocity)))
 
 (defn get-x-velocity
-  [{:keys [pressed-keys x-velocity]}]
+  [{:keys [pressed-keys]} {:keys [x-velocity]}]
   (cond
     (contains? pressed-keys :left)
     (* -1 max-velocity)
@@ -28,68 +30,71 @@
     x-velocity))
 
 (defn get-y-velocity
-  [{:keys [pressed-keys y-velocity can-jump?]}]
+  [{:keys [pressed-keys]} {:keys [y-velocity]}]
   (cond
-    (and can-jump? (contains? pressed-keys :up))
-    (* -1 max-jump-velocity)
+    (contains? pressed-keys :up)
+    (* -1 max-velocity)
+    (contains? pressed-keys :down)
+    max-velocity
     :else
     y-velocity))
 
 (defn get-direction
-  [{:keys [x-velocity direction]}]
-  (cond
-    (> x-velocity 0) :right
-    (< x-velocity 0) :left
-    :else
-    direction))
+  [x-velocity y-velocity]
+  (some->> velocities
+           (filter (fn [[x y]]
+                     (and (= x (int (math #?(:clj signum :cljs sign) (float x-velocity))))
+                          (= y (int (math #?(:clj signum :cljs sign) (float y-velocity)))))))
+           first
+           (.indexOf velocities)
+           (nth directions)))
 
 (defn move
-  [{:keys [delta-time] :as game} {:keys [player-x player-y can-jump?] :as state}]
-  (let [x-velocity (get-x-velocity state)
-        y-velocity (+ (get-y-velocity state) gravity)
+  [{:keys [delta-time] :as game} state {:keys [x y] :as character}]
+  (let [x-velocity (get-x-velocity state character)
+        y-velocity (get-y-velocity state character)
         x-change (* x-velocity delta-time)
         y-change (* y-velocity delta-time)]
     (if (or (not= 0 x-change) (not= 0 y-change))
-      (assoc state
+      (assoc character
              :x-velocity (decelerate x-velocity)
              :y-velocity (decelerate y-velocity)
              :x-change x-change
              :y-change y-change
-             :player-x (+ player-x x-change)
-             :player-y (+ player-y y-change)
-             :can-jump? (if (neg? y-velocity) false can-jump?))
-      state)))
+             :x (+ x x-change)
+             :y (+ y y-change))
+      character)))
 
 (defn prevent-move
-  [game {:keys [player-x player-y
-                player-width player-height
+  [game {:keys [x y
+                width height
                 x-change y-change]
-         :as state}]
-  (let [old-x (- player-x x-change)
-        old-y (- player-y y-change)
+         :as character}]
+  (let [old-x (- x x-change)
+        old-y (- y y-change)
         up? (neg? y-change)
         game-width (utils/get-width game)
         game-height (utils/get-height game)]
-    (merge state
-      (when (or (< player-x 0)
-                (> player-x (- game-width player-width)))
-        {:x-velocity 0 :x-change 0 :player-x old-x})
-      (when (> player-y (- game-height player-height))
-        {:y-velocity 0 :y-change 0 :player-y old-y :can-jump? (not up?)}))))
+    (merge character
+      (when (or (< x 0)
+                (> x (- game-width width)))
+        {:x-velocity 0 :x-change 0 :x old-x})
+      (when (or (< y 0)
+                (> y (- game-height height)))
+        {:y-velocity 0 :y-change 0 :y old-y}))))
 
 (defn animate
   [{:keys [total-time]}
-   {:keys [x-velocity y-velocity direction
-           player-images player-image-key]
-    :as state}]
-  (let [direction (get-direction state)]
-    (-> state
-        (assoc :player-image-key
-               (if (and (not= x-velocity 0)
-                        (= y-velocity 0))
-                 (let [image-keys (->> player-images keys sort vec)
-                       cycle-time (mod total-time (* animation-secs (count image-keys)))]
-                   (nth image-keys (int (/ cycle-time animation-secs))))
-                 player-image-key))
+   {:keys [x-velocity y-velocity moves current-image]
+    :as character}]
+  (let [direction (get-direction x-velocity y-velocity)]
+    (-> character
+        (assoc :current-image
+          (if (or (not= x-velocity 0)
+                  (not= y-velocity 0))
+            (let [images (direction moves)
+                  cycle-time (mod total-time (* animation-secs (count images)))]
+              (nth images (int (/ cycle-time animation-secs))))
+            current-image))
         (assoc :direction direction))))
 

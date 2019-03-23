@@ -10,77 +10,81 @@
 (defonce *state (atom {:mouse-x 0
                        :mouse-y 0
                        :pressed-keys #{}
-                       :x-velocity 0
-                       :y-velocity 0
-                       :player-x 0
-                       :player-y 0
-                       :can-jump? false
-                       :direction :right
-                       :player-images {}
-                       :player-image-key :walk1}))
+                       :characters {}}))
+
+(defn create-grid [image tile-size mask-size]
+  (let [offset (-> tile-size (- mask-size) (/ 2))]
+    (vec (for [y (range 0 (:height image) tile-size)]
+           (vec (for [x (range 0 (:width image) tile-size)]
+                  (t/crop image (+ x offset) (+ y offset) mask-size mask-size)))))))
 
 (defn init [game]
   ;; allow transparency in images
   (gl game enable (gl game BLEND))
   (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
   ;; load images and put them in the state atom
-  (doseq [[k path] {:walk1 "player_walk1.png"
-                    :walk2 "player_walk2.png"
-                    :walk3 "player_walk3.png"}]
+  (doseq [[k path] {:player "characters/male_light.png"}]
     (utils/get-image path
       (fn [{:keys [data width height]}]
-        (let [;; create an image entity (a map with info necessary to display it)
-              entity (e/->image-entity game data width height)
-              ;; compile the shaders so it is ready to render
+        (let [entity (e/->image-entity game data width height)
               entity (c/compile game entity)
-              ;; assoc the width and height to we can reference it later
-              entity (assoc entity :width width :height height)]
+              mask-size 128
+              grid (create-grid entity 256 mask-size)
+              moves (zipmap move/directions
+                      (map #(vec (take 4 %)) grid))
+              attacks (zipmap move/directions
+                        (map #(nth % 4) grid))
+              specials (zipmap move/directions
+                         (map #(nth % 5) grid))
+              hits (zipmap move/directions
+                     (map #(nth % 6) grid))
+              deads (zipmap move/directions
+                      (map #(nth % 7) grid))
+              character {:moves moves
+                         :attacks attacks
+                         :specials specials
+                         :hits hits
+                         :deads deads
+                         :direction :s
+                         :current-image (get-in moves [:s 0])
+                         :width mask-size
+                         :height mask-size
+                         :x 0
+                         :y 0
+                         :x-velocity 0
+                         :y-velocity 0}]
           ;; add it to the state
-          (swap! *state update :player-images assoc k entity))))))
+          (swap! *state update :characters assoc k character))))))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
    :clear {:color [(/ 173 255) (/ 216 255) (/ 230 255) 1] :depth 1}})
 
 (defn run [game]
-  (let [{:keys [entities
-                pressed-keys
-                player-x
-                player-y
-                direction
-                player-images
-                player-image-key]
+  (let [{:keys [pressed-keys
+                characters]
          :as state} @*state
         game-width (utils/get-width game)
         game-height (utils/get-height game)]
-    ;; render the blue background
+    ;; render the background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
     ;; get the current player image to display
-    (when-let [player (get player-images player-image-key)]
-      (let [player-width (/ game-width 10)
-            player-height (* player-width (/ (:height player) (:width player)))]
-        ;; render the player
+    (when-let [player (:player characters)]
+      ;; render the player
+      (when-let [image (:current-image player)]
         (c/render game
-          (-> player
+          (-> image
               (t/project game-width game-height)
-              (t/translate (cond-> player-x
-                                   (= direction :left)
-                                   (+ player-width))
-                           player-y)
-              (t/scale (cond-> player-width
-                               (= direction :left)
-                               (* -1))
-                       player-height)))
-        ;; change the state to move the player
-        (swap! *state
-          (fn [state]
-            (->> (assoc state
-                        :player-width player-width
-                        :player-height player-height)
-                 (move/move game)
-                 (move/prevent-move game)
-                 (move/animate game)))))))
+              (t/translate (:x player) (:y player))
+              (t/scale 100 100))))
+      ;; change the state to move the player
+      (swap! *state update-in [:characters :player]
+        (fn [player]
+          (->> player
+               (move/move game state)
+               (move/prevent-move game)
+               (move/animate game))))))
   ;; return the game map
   game)
 
