@@ -1,8 +1,7 @@
 (ns dungeon-crawler.start
   (:require [dungeon-crawler.core :as c]
             [play-cljc.gl.core :as pc]
-            [goog.events :as events])
-  (:require-macros [dungeon-crawler.music :refer [build-for-cljs]]))
+            [goog.events :as events]))
 
 (defn resize [{:keys [context] :as game}]
   (let [display-width context.canvas.clientWidth
@@ -62,19 +61,4 @@
     (c/init initial-game)
     (game-loop initial-game)
     context))
-
-;; build music, put it in the audio tag, and make the button toggle it on and off
-
-(defonce play-music? (atom false))
-
-(defonce audio (js/document.querySelector "#audio"))
-(set! (.-src audio) (build-for-cljs))
-(when @play-music? (.play audio))
-
-(defonce button (js/document.querySelector "#audio-button"))
-(set! (.-onclick button)
-      (fn [e]
-        (if (swap! play-music? not)
-          (.play audio)
-          (.pause audio))))
 

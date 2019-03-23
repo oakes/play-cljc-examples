@@ -1,6 +1,5 @@
 (ns dungeon-crawler.start
   (:require [dungeon-crawler.core :as c]
-            [dungeon-crawler.music :as m]
             [play-cljc.gl.core :as pc])
   (:import  [org.lwjgl.glfw GLFW Callbacks GLFWCursorPosCallbackI GLFWKeyCallbackI]
             [org.lwjgl.opengl GL GL41]
@@ -51,12 +50,6 @@
             GLFW/GLFW_RELEASE (swap! c/*state update :pressed-keys disj k)
             nil))))))
 
-(defn play-music []
-  (doto (AudioSystem/getClip)
-    (.open (AudioSystem/getAudioInputStream (m/build-for-clj)))
-    (.loop Clip/LOOP_CONTINUOUSLY)
-    (.start)))
-
 (defn -main [& args]
   (when-not (GLFW/glfwInit)
     (throw (Exception. "Unable to initialize GLFW")))
@@ -74,7 +67,6 @@
       (GL/createCapabilities)
       (listen-for-mouse window)
       (listen-for-keys window)
-      (play-music)
       (let [initial-game (assoc (pc/->game window)
                                 :delta-time 0
                                 :total-time 0)]

@@ -4,8 +4,7 @@
         org.lwjgl/lwjgl {:mvn/version "3.2.1"}
         org.lwjgl/lwjgl-glfw {:mvn/version "3.2.1"}
         org.lwjgl/lwjgl-opengl {:mvn/version "3.2.1"}
-        org.lwjgl/lwjgl-stb {:mvn/version "3.2.1"}
-        edna {:mvn/version "1.6.0"}}
+        org.lwjgl/lwjgl-stb {:mvn/version "3.2.1"}}
  :aliases {:dev {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.520"}
                               com.bhauman/figwheel-main {:mvn/version "0.2.0"}
                               nightlight {:mvn/version "RELEASE"}
