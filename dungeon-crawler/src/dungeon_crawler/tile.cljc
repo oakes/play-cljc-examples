@@ -39,8 +39,10 @@
                     (into {}))]
     (utils/get-image (-> image :attrs :source)
       (fn [{:keys [data width height]}]
-        (let [entity-width (* tilewidth map-width)
-              entity-height (* tileheight map-height)
+        (let [tile-width (* 3 tilewidth)
+              tile-height (* 3 tileheight)
+              entity-width (* tile-width map-width)
+              entity-height (* tile-height map-height)
               outer-entity (e/->image-entity game nil entity-width entity-height)
               inner-entity (c/compile game (-> (e/->image-entity game data width height)
                                                (assoc :viewport {:x 0 :y 0 :width entity-width :height entity-height})))
@@ -65,13 +67,13 @@
             {:layers partitioned-layers
              :map-width map-width
              :map-height map-height
-             :tile-width tilewidth
-             :tile-height tileheight}
+             :tile-width tile-width
+             :tile-height tile-height}
             (update-in
               (c/compile game
                 (assoc outer-entity
-                  :width width
-                  :height height
+                  :width entity-width
+                  :height entity-height
                   :render-to-texture
                   {'u_image
                    (->> (for [layer ["walls"]
@@ -81,7 +83,7 @@
                                     id (dec (nth (get layers layer) i))]
                               :when (>= id 0)]
                           (let [image (nth images id)]
-                            (transform-tile image x y entity-width entity-height tilewidth tileheight)))
+                            (transform-tile image x y entity-width entity-height tile-width tile-height)))
                         (sort-by #(get-in % [:uniforms 'u_matrix 7]) >)
                         vec)}))
               [:uniforms 'u_matrix]

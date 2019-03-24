@@ -32,43 +32,43 @@
   ;; allow transparency in images
   (gl game enable (gl game BLEND))
   (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
-  ;; load images and put them in the state atom
-  (doseq [[k path] {:player "characters/male_light.png"}]
-    (utils/get-image path
-      (fn [{:keys [data width height]}]
-        (let [entity (e/->image-entity game data width height)
-              entity (c/compile game entity)
-              mask-size 128
-              grid (create-grid entity 256 mask-size)
-              moves (zipmap move/directions
-                      (map #(vec (take 4 %)) grid))
-              attacks (zipmap move/directions
-                        (map #(nth % 4) grid))
-              specials (zipmap move/directions
-                         (map #(nth % 5) grid))
-              hits (zipmap move/directions
-                     (map #(nth % 6) grid))
-              deads (zipmap move/directions
-                      (map #(nth % 7) grid))
-              character {:moves moves
-                         :attacks attacks
-                         :specials specials
-                         :hits hits
-                         :deads deads
-                         :direction :s
-                         :current-image (get-in moves [:s 0])
-                         :width mask-size
-                         :height mask-size
-                         :x 0
-                         :y 0
-                         :x-velocity 0
-                         :y-velocity 0}]
-          ;; add it to the state
-          (swap! *state update :characters assoc k character)))))
   ;; load the tiled map
   (tile/load-tiled-map game tiled-map
     (fn [tiled-map entity]
-      (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity))))
+      (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity)
+      ;; load images and put them in the state atom
+      (doseq [[k path] {:player "characters/male_light.png"}]
+        (utils/get-image path
+          (fn [{:keys [data width height]}]
+            (let [entity (e/->image-entity game data width height)
+                  entity (c/compile game entity)
+                  mask-size 128
+                  grid (create-grid entity 256 mask-size)
+                  moves (zipmap move/directions
+                          (map #(vec (take 4 %)) grid))
+                  attacks (zipmap move/directions
+                            (map #(nth % 4) grid))
+                  specials (zipmap move/directions
+                             (map #(nth % 5) grid))
+                  hits (zipmap move/directions
+                         (map #(nth % 6) grid))
+                  deads (zipmap move/directions
+                          (map #(nth % 7) grid))
+                  character {:moves moves
+                             :attacks attacks
+                             :specials specials
+                             :hits hits
+                             :deads deads
+                             :direction :s
+                             :current-image (get-in moves [:s 0])
+                             :width mask-size
+                             :height mask-size
+                             :x 500
+                             :y -3200
+                             :x-velocity 0
+                             :y-velocity 0}]
+              ;; add it to the state
+              (swap! *state update :characters assoc k character))))))))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
@@ -92,10 +92,8 @@
                            (t/project game-width game-height)
                            (t/translate (- (:x player)) (:y player))
                            (t/scale
-                             (* (/ (:width tiled-map-entity)
-                                   (:height tiled-map-entity))
-                                game-height)
-                             game-height))))
+                             (:width tiled-map-entity)
+                             (:height tiled-map-entity)))))
       ;; render the player
       (when-let [image (:current-image player)]
         (c/render game
