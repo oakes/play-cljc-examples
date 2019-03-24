@@ -9,11 +9,16 @@
 #?(:clj (defmacro read-tiled-map [fname]
           (slurp (io/resource (str "public/" fname)))))
 
-(defn transform-tile [tile x y width height tile-size]
-  (-> tile
-      (t/project width height)
-      (t/translate (* x tile-size) (* y tile-size))
-      (t/scale tile-size tile-size)))
+(defn transform-tile [tile x y width height tile-width tile-height]
+  (let [x (* x (/ tile-width 2))
+        y (* y (/ tile-height 2))]
+    (-> tile
+        (t/project width height)
+        (t/translate
+          (+ x y)
+          (+ (/ (- y x) 2)
+             (/ height 2)))
+        (t/scale tile-width tile-height))))
 
 (def flip-y-matrix
   [1  0  0
@@ -34,12 +39,11 @@
                     (into {}))]
     (utils/get-image (-> image :attrs :source)
       (fn [{:keys [data width height]}]
-        (let [tile-size (/ height map-height)
-              entity-width (* tile-size map-width)
-              entity-height (* tile-size map-height)
-              outer-entity (e/->image-entity game nil entity-width entity-height)
+        (let [tile-width (/ width map-width)
+              tile-height (/ height map-height)
+              outer-entity (e/->image-entity game nil width height)
               inner-entity (c/compile game (-> (e/->image-entity game data width height)
-                                               (assoc :viewport {:x 0 :y 0 :width entity-width :height entity-height})))
+                                               (assoc :viewport {:x 0 :y 0 :width width :height height})))
               tiles-vert (/ height tileheight)
               tiles-horiz (/ width tilewidth)
               images (vec
@@ -66,18 +70,20 @@
             (update-in
               (c/compile game
                 (assoc outer-entity
-                  :width entity-width
-                  :height entity-height
+                  :width width
+                  :height height
                   :render-to-texture
                   {'u_image
-                   (vec (for [layer ["walls"]
+                   (->> (for [layer ["walls"]
                               i (range (count (get layers layer)))
                               :let [x (mod i map-width)
                                     y (int (/ i map-width))
                                     id (dec (nth (get layers layer) i))]
                               :when (>= id 0)]
                           (let [image (nth images id)]
-                            (transform-tile image x y entity-width entity-height tile-size))))}))
+                            (transform-tile image x y width height tile-width tile-height)))
+                        (sort-by #(get-in % [:uniforms 'u_matrix 7]) >)
+                        vec)}))
               [:uniforms 'u_matrix]
               #(m/multiply-matrices 3 flip-y-matrix %))))))))
 
