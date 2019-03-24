@@ -84,31 +84,31 @@
     ;; render the background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
-    ;; render the tiled map
-    (when tiled-map-entity
-      (c/render game (-> tiled-map-entity
-                         (t/project game-width game-height)
-                         (t/translate 0 0)
-                         (t/scale
-                           (* (/ (:width tiled-map-entity)
-                                 (:height tiled-map-entity))
-                              game-height)
-                           game-height))))
     ;; get the current player image to display
     (when-let [player (:player characters)]
+      ;; render the tiled map
+      (when tiled-map-entity
+        (c/render game (-> tiled-map-entity
+                           (t/project game-width game-height)
+                           (t/translate (- (:x player)) (:y player))
+                           (t/scale
+                             (* (/ (:width tiled-map-entity)
+                                   (:height tiled-map-entity))
+                                game-height)
+                             game-height))))
       ;; render the player
       (when-let [image (:current-image player)]
         (c/render game
           (-> image
               (t/project game-width game-height)
-              (t/translate (:x player) (:y player))
+              (t/translate (/ game-width 2) (/ game-height 2))
               (t/scale 100 100))))
       ;; change the state to move the player
       (swap! *state update-in [:characters :player]
         (fn [player]
           (->> player
                (move/move game state)
-               (move/prevent-move game)
+               ;(move/prevent-move game)
                (move/animate game))))))
   ;; return the game map
   game)

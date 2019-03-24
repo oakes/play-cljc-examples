@@ -24,10 +24,8 @@
    {:keys [pressed-keys mouse-button mouse-x mouse-y]}
    {:keys [x y x-velocity y-velocity]}]
   (if mouse-button
-    (let [;x (- mouse-x (/ (utils/get-width game) 2))
-          ;y (- mouse-y (/ (utils/get-height game) 2))
-          x (- mouse-x x)
-          y (- mouse-y y)
+    (let [x (- mouse-x (/ (utils/get-width game) 2))
+          y (- mouse-y (/ (utils/get-height game) 2))
           x-adjust (if (= y 0)
                      0
                      (* max-velocity (math abs (/ x y))))
