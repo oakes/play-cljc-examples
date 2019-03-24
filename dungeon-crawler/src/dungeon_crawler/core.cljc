@@ -18,7 +18,7 @@
                        :tiled-map nil
                        :tiled-map-entity nil}))
 
-(defonce tiled-xml (read-tiled-map "level1.tmx"))
+(def tiled-xml (read-tiled-map "level1.tmx"))
 (def tiled-map (ts/parse tiled-xml))
 (def map-height (-> tiled-map :attrs :height))
 
