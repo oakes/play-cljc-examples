@@ -1,7 +1,6 @@
 (ns super-koalio.core
   (:require [super-koalio.utils :as utils]
             [super-koalio.move :as move]
-            [tile-soup.core :as ts]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
@@ -10,14 +9,18 @@
             #?(:clj  [super-koalio.tile :as tile :refer [read-tiled-map]]
                :cljs [super-koalio.tile :as tile :refer-macros [read-tiled-map]])))
 
+(def koala-width 18)
+(def koala-height 26)
+
 (defonce *state (atom {:mouse-x 0
                        :mouse-y 0
                        :pressed-keys #{}
                        :x-velocity 0
                        :y-velocity 0
-                       :player-x 0
+                       :player-x 20
                        :player-y 0
-                       :player-offset 0
+                       :player-width 1
+                       :player-height (/ koala-height koala-width)
                        :can-jump? false
                        :started? false
                        :direction :right
@@ -25,14 +28,10 @@
                        :player-walk-keys [:walk1 :walk2 :walk3]
                        :player-image-key :jump
                        :tiled-map nil
-                       :tiled-map-entity nil}))
+                       :tiled-map-entity nil
+                       :camera (e/->camera)}))
 
-(defonce tiled-xml (read-tiled-map "level1.tmx"))
-(def tiled-map (ts/parse tiled-xml))
-(def map-height (-> tiled-map :attrs :height))
-
-(def koala-width 18)
-(def koala-height 26)
+(def tiled-xml (read-tiled-map "level1.tmx"))
 
 (defn init [game]
   ;; allow transparency in images
@@ -57,7 +56,7 @@
           :walk2 walk2
           :walk3 walk3))))
   ;; load the tiled map
-  (tile/load-tiled-map game tiled-map
+  (tile/load-tiled-map game tiled-xml
     (fn [tiled-map entity]
       (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity))))
 
@@ -69,13 +68,24 @@
   (let [{:keys [pressed-keys
                 player-x
                 player-y
+                player-width
+                player-height
                 direction
                 player-images
                 player-image-key
-                tiled-map-entity]
+                tiled-map
+                tiled-map-entity
+                camera]
          :as state} @*state
         game-width (utils/get-width game)
-        game-height (utils/get-height game)]
+        game-height (utils/get-height game)
+        offset (/ game-width 2)
+        tile-size (/ game-height (:map-height tiled-map))
+        player-x (* player-x tile-size)
+        player-y (* player-y tile-size)
+        player-width (* player-width tile-size)
+        player-height (* player-height tile-size)
+        camera (t/translate camera (- player-x offset) 0)]
     ;; render the blue background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
@@ -83,7 +93,7 @@
     (when tiled-map-entity
       (c/render game (-> tiled-map-entity
                          (t/project game-width game-height)
-                         (t/translate (- player-x) 0)
+                         (t/camera camera)
                          (t/scale
                            (* (/ (:width tiled-map-entity)
                                  (:height tiled-map-entity))
@@ -91,33 +101,26 @@
                            game-height))))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
-      (let [player-width  (/ game-height map-height)
-            player-height (* player-width (/ koala-height koala-width))
-            player-offset (/ game-width 2)]
-        ;; render the player
-        (c/render game
-          (-> player
-              (t/project game-width game-height)
-              (t/translate (cond-> player-offset
-                                   (= direction :left)
-                                   (+ player-width))
-                player-y)
-              (t/scale (cond-> player-width
-                               (= direction :left)
-                               (* -1))
-                player-height)))
-        ;; change the state to move the player
-        (swap! *state
-          (fn [state]
-            (->> (assoc state
-                   :game-width game-width
-                   :game-height game-height
-                   :player-width player-width
-                   :player-height player-height
-                   :player-offset player-offset)
-                 (move/move game)
-                 (move/prevent-move)
-                 (move/animate game)))))))
+      ;; render the player
+      (c/render game
+        (-> player
+            (t/project game-width game-height)
+            (t/camera camera)
+            (t/translate (cond-> player-x
+                                 (= direction :left)
+                                 (+ player-width))
+              player-y)
+            (t/scale (cond-> player-width
+                             (= direction :left)
+                             (* -1))
+              player-height)))
+      ;; change the state to move the player
+      (swap! *state
+        (fn [state]
+          (->> state
+               (move/move game)
+               (move/prevent-move)
+               (move/animate game))))))
   ;; return the game map
   game)
 

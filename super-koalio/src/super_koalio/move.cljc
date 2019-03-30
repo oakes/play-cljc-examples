@@ -5,10 +5,10 @@
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
 (def ^:const damping 0.1)
-(def ^:const max-velocity 1000)
-(def ^:const max-jump-velocity (* max-velocity 8))
-(def ^:const deceleration 0.7)
-(def ^:const gravity 500)
+(def ^:const max-velocity 14)
+(def ^:const max-jump-velocity (* max-velocity 6))
+(def ^:const deceleration 0.8)
+(def ^:const gravity 2.5)
 (def ^:const animation-secs 0.2)
 
 (defn decelerate
@@ -50,7 +50,7 @@
         y-velocity (+ (get-y-velocity state) (if started?
                                                gravity
                                                ;; initially make the gravity lower so koalio floats down
-                                               100))
+                                               1.5))
         x-change (* x-velocity delta-time)
         y-change (* y-velocity delta-time)]
     (if (or (not= 0 x-change) (not= 0 y-change))
@@ -67,17 +67,16 @@
 (defn prevent-move
   [{:keys [player-x player-y
            player-width player-height
-           player-offset
            x-change y-change
-           tiled-map game-height]
+           tiled-map]
     :as state}]
   (let [old-x (- player-x x-change)
         old-y (- player-y y-change)
         up? (neg? y-change)]
     (merge state
-      (when (tile/touching-tile? tiled-map "walls" game-height (+ player-x player-offset) old-y player-width player-height)
+      (when (tile/touching-tile? tiled-map "walls" player-x old-y player-width player-height)
         {:x-velocity 0 :x-change 0 :player-x old-x})
-      (when (tile/touching-tile? tiled-map "walls" game-height (+ old-x player-offset) player-y player-width player-height)
+      (when (tile/touching-tile? tiled-map "walls" old-x player-y player-width player-height)
         {:y-velocity 0 :y-change 0 :player-y old-y
          :can-jump? (not up?) :started? true}))))
 

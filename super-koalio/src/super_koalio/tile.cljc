@@ -1,5 +1,6 @@
 (ns super-koalio.tile
   (:require [super-koalio.utils :as utils]
+            [tile-soup.core :as ts]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
             [play-cljc.gl.core :as c]
@@ -20,8 +21,9 @@
    0 -1  0
    0  0  1])
 
-(defn load-tiled-map [game parsed callback]
-  (let [map-width (-> parsed :attrs :width)
+(defn load-tiled-map [game tiled-xml callback]
+  (let [parsed (ts/parse tiled-xml)
+        map-width (-> parsed :attrs :width)
         map-height (-> parsed :attrs :height)
         tileset (first (filter #(= :tileset (:tag %)) (:content parsed)))
         image (first (filter #(= :image (:tag %)) (:content tileset)))
@@ -81,16 +83,12 @@
               [:uniforms 'u_matrix]
               #(m/multiply-matrices 3 flip-y-matrix %))))))))
 
-(defn touching-tile? [{:keys [layers map-width map-height tile-width tile-height]}
-                      layer-name game-height x y width height]
+(defn touching-tile? [{:keys [layers]} layer-name x y width height]
   (let [layer (get layers layer-name)
-        ratio (/ (* map-height tile-height)
-                 game-height)
-        [x y width height] (mapv #(* % ratio) [x y width height])
-        start-x (int (/ x tile-width))
-        start-y (int (/ y tile-height))
-        end-x (inc (int (/ (+ x width) tile-width)))
-        end-y (int (/ (+ y height) tile-height))
+        start-x (int x)
+        start-y (int y)
+        end-x (inc (int (+ x width)))
+        end-y (int (+ y height))
         tiles (for [tile-x (range start-x end-x)
                     tile-y (range end-y start-y -1)]
                 (get-in layer [tile-y tile-x]))]
