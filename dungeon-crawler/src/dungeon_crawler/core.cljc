@@ -1,6 +1,7 @@
 (ns dungeon-crawler.core
   (:require [dungeon-crawler.utils :as utils]
             [dungeon-crawler.move :as move]
+            [clojure.edn :as edn]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
@@ -17,7 +18,7 @@
                        :tiled-map nil
                        :tiled-map-entity nil}))
 
-(def tiled-xml (read-tiled-map "level1.tmx"))
+(def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 
 (defn create-grid [image tile-size mask-size]
   (let [offset (-> tile-size (- mask-size) (/ 2))]
@@ -30,7 +31,7 @@
   (gl game enable (gl game BLEND))
   (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
   ;; load the tiled map
-  (tile/load-tiled-map game tiled-xml
+  (tile/load-tiled-map game tiled-map
     (fn [tiled-map entity]
       (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity)
       ;; load images and put them in the state atom
