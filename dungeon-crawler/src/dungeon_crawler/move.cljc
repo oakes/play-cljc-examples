@@ -4,8 +4,8 @@
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
 (def ^:const damping 0.1)
-(def ^:const max-velocity 500)
-(def ^:const deceleration 0.7)
+(def ^:const max-velocity 4)
+(def ^:const deceleration 0.8)
 (def ^:const animation-secs 0.2)
 (def ^:const directions [:w :nw :n :ne
                          :e :se :s :sw])
