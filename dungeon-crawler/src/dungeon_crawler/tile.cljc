@@ -1,5 +1,6 @@
 (ns dungeon-crawler.tile
   (:require [dungeon-crawler.utils :as utils]
+            [tile-soup.core :as ts]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
             [play-cljc.gl.core :as c]
@@ -25,8 +26,9 @@
    0 -1  0
    0  0  1])
 
-(defn load-tiled-map [game parsed callback]
-  (let [map-width (-> parsed :attrs :width)
+(defn load-tiled-map [game tiled-xml callback]
+  (let [parsed (ts/parse tiled-xml)
+        map-width (-> parsed :attrs :width)
         map-height (-> parsed :attrs :height)
         tileset (first (filter #(= :tileset (:tag %)) (:content parsed)))
         image (first (filter #(= :image (:tag %)) (:content tileset)))
