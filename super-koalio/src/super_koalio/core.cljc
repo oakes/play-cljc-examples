@@ -1,6 +1,7 @@
 (ns super-koalio.core
   (:require [super-koalio.utils :as utils]
             [super-koalio.move :as move]
+            [clojure.edn :as edn]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
@@ -31,7 +32,7 @@
                        :tiled-map-entity nil
                        :camera (e/->camera)}))
 
-(def tiled-xml (read-tiled-map "level1.tmx"))
+(def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 
 (defn init [game]
   ;; allow transparency in images
@@ -56,7 +57,7 @@
           :walk2 walk2
           :walk3 walk3))))
   ;; load the tiled map
-  (tile/load-tiled-map game tiled-xml
+  (tile/load-tiled-map game tiled-map
     (fn [tiled-map entity]
       (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity))))
 

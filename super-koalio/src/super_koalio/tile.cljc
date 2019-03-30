@@ -1,14 +1,18 @@
 (ns super-koalio.tile
   (:require [super-koalio.utils :as utils]
-            [tile-soup.core :as ts]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
-            #?(:clj [clojure.java.io :as io])))
+            #?@(:clj [[clojure.java.io :as io]
+                      [tile-soup.core :as ts]])))
 
 #?(:clj (defmacro read-tiled-map [fname]
-          (slurp (io/resource (str "public/" fname)))))
+          (-> (str "public/" fname)
+              io/resource
+              slurp
+              ts/parse
+              pr-str)))
 
 (defn transform-tile [tile x y width height tile-size]
   (-> tile
@@ -21,9 +25,8 @@
    0 -1  0
    0  0  1])
 
-(defn load-tiled-map [game tiled-xml callback]
-  (let [parsed (ts/parse tiled-xml)
-        map-width (-> parsed :attrs :width)
+(defn load-tiled-map [game parsed callback]
+  (let [map-width (-> parsed :attrs :width)
         map-height (-> parsed :attrs :height)
         tileset (first (filter #(= :tileset (:tag %)) (:content parsed)))
         image (first (filter #(= :image (:tag %)) (:content tileset)))
