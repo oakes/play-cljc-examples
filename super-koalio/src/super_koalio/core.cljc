@@ -30,7 +30,7 @@
                        :player-image-key :jump
                        :tiled-map nil
                        :tiled-map-entity nil
-                       :camera (e/->camera)}))
+                       :camera (e/->camera true)}))
 
 (def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 
