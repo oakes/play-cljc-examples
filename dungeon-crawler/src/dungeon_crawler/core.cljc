@@ -66,7 +66,7 @@
                              :width (/ mask-size tile-size)
                              :height (/ mask-size tile-size)
                              :x 5
-                             :y -30
+                             :y 30
                              :x-velocity 0
                              :y-velocity 0}]
               ;; add it to the state
@@ -97,7 +97,7 @@
             player-y (* (:y player) tile-size)
             player-width (* (:width player) tile-size)
             player-height (* (:height player) tile-size)
-            camera (t/translate camera (- player-x offset-x) (- 0 player-y offset-y))]
+            camera (t/translate camera (- player-x offset-x) (- player-y offset-y))]
         ;; render the tiled map
         (when tiled-map-entity
           (c/render game (-> tiled-map-entity
@@ -112,7 +112,7 @@
             (-> image
                 (t/project game-width game-height)
                 (t/camera camera)
-                (t/translate player-x (- player-y))
+                (t/translate player-x player-y)
                 (t/scale player-width player-height))))
         ;; change the state to move the player
         (swap! *state update-in [:characters :player]
