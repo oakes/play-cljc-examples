@@ -117,8 +117,8 @@
                 (t/project game-width game-height)
                 (t/camera camera)
                 (t/translate
-                  (- player-x (/ player-width 2))
-                  (- player-y (/ player-height 2)))
+                  (- player-x player-width)
+                  (- player-y player-height))
                 (t/scale
                   (* 2 player-width)
                   (* 2 player-height)))))
