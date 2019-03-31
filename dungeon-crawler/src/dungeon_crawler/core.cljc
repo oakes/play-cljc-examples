@@ -56,6 +56,7 @@
                          (map #(nth % 6) grid))
                   deads (zipmap move/directions
                           (map #(nth % 7) grid))
+                  [x y] (tile/isometric->screen 5 5)
                   character {:moves moves
                              :attacks attacks
                              :specials specials
@@ -65,8 +66,8 @@
                              :current-image (get-in moves [:s 0])
                              :width (/ mask-size tile-size)
                              :height (/ mask-size tile-size)
-                             :x 5
-                             :y 30
+                             :x x
+                             :y y
                              :x-velocity 0
                              :y-velocity 0}]
               ;; add it to the state
@@ -103,9 +104,12 @@
           (c/render game (-> tiled-map-entity
                              (t/project game-width game-height)
                              (t/camera camera)
+                             (t/translate
+                               (- 0 (/ (* 2 tile-size (:map-width tiled-map)) 2))
+                               (- 0 (/ (* 2 tile-size (:map-height tiled-map)) 2)))
                              (t/scale
-                               (* tile-size (:map-width tiled-map))
-                               (* tile-size (:map-height tiled-map))))))
+                               (* 2 tile-size (:map-width tiled-map))
+                               (* 2 tile-size (:map-height tiled-map))))))
         ;; render the player
         (when-let [image (:current-image player)]
           (c/render game
