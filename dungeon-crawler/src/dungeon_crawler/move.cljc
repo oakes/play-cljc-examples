@@ -10,8 +10,8 @@
 (def ^:const animation-secs 0.2)
 (def ^:const directions [:w :nw :n :ne
                          :e :se :s :sw])
-(def ^:const velocities [[-1 0] [-1 1] [0 1] [1 1]
-                         [1 0] [1 -1] [0 -1] [-1 -1]])
+(def ^:const velocities [[-1 0] [-1 -1] [0 -1] [1 -1]
+                         [1 0] [1 1] [0 1] [-1 1]])
 
 (defn decelerate
   [velocity]
@@ -26,7 +26,7 @@
    {:keys [x y x-velocity y-velocity]}]
   (if mouse-button
     (let [x (- mouse-x (/ (utils/get-width game) 2))
-          y (- (- mouse-y (/ (utils/get-height game) 2)))
+          y (- mouse-y (/ (utils/get-height game) 2))
           x-adjust (if (= y 0)
                      0
                      (* max-velocity (math abs (/ x y))))
@@ -46,9 +46,9 @@
        x-velocity)
      (cond
        (contains? pressed-keys :up)
-       max-velocity
-       (contains? pressed-keys :down)
        (* -1 max-velocity)
+       (contains? pressed-keys :down)
+       max-velocity
        :else
        y-velocity)]))
 
