@@ -5,9 +5,7 @@
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             #?@(:clj [[clojure.java.io :as io]
-                      [tile-soup.core :as ts]])
-            #?(:clj  [play-cljc.macros-java :refer [math]]
-               :cljs [play-cljc.macros-js :refer-macros [math]])))
+                      [tile-soup.core :as ts]])))
 
 #?(:clj (defmacro read-tiled-map [fname]
           (-> (str "public/" fname)
@@ -19,6 +17,10 @@
 (defn isometric->screen [x y]
   [(- x y)
    (/ (+ x y) 2)])
+
+(defn screen->isometric [x y]
+  (let [y (- y (/ x 2))]
+    [(+ x y) y]))
 
 (defn transform-tile [tile x y width height tile-width tile-height]
   (let [[x y] (isometric->screen x y)
@@ -104,11 +106,12 @@
               #(m/multiply-matrices 3 flip-y-matrix %))))))))
 
 (defn touching-tile? [{:keys [layers]} layer-name x y width height]
-  (let [layer (get layers layer-name)
+  (let [[x y] (screen->isometric x y)
+        layer (get layers layer-name)
         start-x (int x)
         start-y (int y)
-        end-x (inc (int (+ x width)))
-        end-y (int (+ y height))
+        end-x (+ x width)
+        end-y (+ y height)
         tiles (for [tile-x (range start-x end-x)
                     tile-y (range end-y start-y -1)]
                 (get-in layer [tile-y tile-x]))]

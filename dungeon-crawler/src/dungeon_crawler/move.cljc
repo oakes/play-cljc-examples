@@ -1,5 +1,6 @@
 (ns dungeon-crawler.move
   (:require [dungeon-crawler.utils :as utils]
+            [dungeon-crawler.tile :as tile]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
@@ -77,21 +78,16 @@
       character)))
 
 (defn prevent-move
-  [game {:keys [x y
-                width height
-                x-change y-change]
-         :as character}]
+  [tiled-map {:keys [x y
+                     width height
+                     x-change y-change]
+              :as character}]
   (let [old-x (- x x-change)
-        old-y (- y y-change)
-        up? (neg? y-change)
-        game-width (utils/get-width game)
-        game-height (utils/get-height game)]
+        old-y (- y y-change)]
     (merge character
-      (when (or (< x 0)
-                (> x (- game-width width)))
+      (when (tile/touching-tile? tiled-map "walls" x old-y width height)
         {:x-velocity 0 :x-change 0 :x old-x})
-      (when (or (< y 0)
-                (> y (- game-height height)))
+      (when (tile/touching-tile? tiled-map "walls" old-x y width height)
         {:y-velocity 0 :y-change 0 :y old-y}))))
 
 (defn animate

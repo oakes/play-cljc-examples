@@ -119,7 +119,7 @@
           (fn [player]
             (->> player
                  (move/move game state)
-                 ;(move/prevent-move game)
+                 (move/prevent-move tiled-map)
                  (move/animate game)))))))
   ;; return the game map
   game)
