@@ -65,9 +65,7 @@
           (callback
             {:layers partitioned-layers
              :map-width map-width
-             :map-height map-height
-             :tile-width tilewidth
-             :tile-height tileheight}
+             :map-height map-height}
             (update-in
               (c/compile game
                 (assoc outer-entity
