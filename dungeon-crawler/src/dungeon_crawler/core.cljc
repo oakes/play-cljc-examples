@@ -75,7 +75,7 @@
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
-   :clear {:color [(/ 173 255) (/ 216 255) (/ 230 255) 1] :depth 1}})
+   :clear {:color [(/ 150 255) (/ 150 255) (/ 150 255) 1] :depth 1}})
 
 (defn run [game]
   (let [{:keys [pressed-keys
@@ -116,8 +116,12 @@
             (-> image
                 (t/project game-width game-height)
                 (t/camera camera)
-                (t/translate player-x player-y)
-                (t/scale player-width player-height))))
+                (t/translate
+                  (- player-x (/ player-width 2))
+                  (- player-y (/ player-height 2)))
+                (t/scale
+                  (* 2 player-width)
+                  (* 2 player-height)))))
         ;; change the state to move the player
         (swap! *state update-in [:characters :player]
           (fn [player]
