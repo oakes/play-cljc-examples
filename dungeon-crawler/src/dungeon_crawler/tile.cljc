@@ -68,10 +68,10 @@
                    rand-spot
                    (* y-diff i))]
           (-> layers
-              (assoc-in ["walls" x y] 0)
-              (assoc-in ["walls" (inc x) y] 0)
-              (assoc-in ["walls" x (inc y)] 0)
-              (assoc-in ["walls" (inc x) (inc y)] 0))))
+              (assoc-in ["walls" y x] 0)
+              (assoc-in ["walls" y (inc x)] 0)
+              (assoc-in ["walls" (inc y) x] 0)
+              (assoc-in ["walls" (inc y) (inc x)] 0))))
       layers
       (range size))))
 
@@ -161,15 +161,15 @@
                       (sort-by #(get-in % [:uniforms 'u_matrix 7]) <)
                       vec)}))))))))
 
-(defn touching-tile? [{:keys [layers]} layer-name x y width height]
+(defn touching-tile? [{:keys [layers map-width map-height]} layer-name x y width height]
   (let [[x y] (screen->isometric x y)
         layer (get layers layer-name)
-        start-x (int x)
-        start-y (int y)
-        end-x (+ x width)
-        end-y (+ y height)
+        start-x x
+        start-y y
+        end-x (int (inc (+ x width)))
+        end-y (int (inc (+ y height)))
         tiles (for [tile-x (range start-x end-x)
                     tile-y (range end-y start-y -1)]
-                (get-in layer [tile-y tile-x]))]
+                (get-in layer [(- map-width tile-x) (- map-height tile-y)]))]
     (some? (first (filter pos? (remove nil? tiles))))))
 
