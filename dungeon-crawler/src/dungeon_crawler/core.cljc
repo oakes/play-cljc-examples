@@ -17,9 +17,11 @@
                        :characters {}
                        :tiled-map nil
                        :tiled-map-entity nil
-                       :camera (e/->camera)}))
+                       :camera (e/->camera true)}))
 
 (def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
+
+(def vertical-tiles 15)
 
 (defn create-grid [image tile-size mask-size]
   (let [offset (-> tile-size (- mask-size) (/ 2))]
@@ -63,8 +65,8 @@
                              :current-image (get-in moves [:s 0])
                              :width (/ mask-size tile-size)
                              :height (/ mask-size tile-size)
-                             :x 20
-                             :y -12
+                             :x 5
+                             :y -30
                              :x-velocity 0
                              :y-velocity 0}]
               ;; add it to the state
@@ -85,7 +87,7 @@
         game-height (utils/get-height game)
         offset-x (/ game-width 2)
         offset-y (/ game-height 2)
-        tile-size (/ game-height 5)]
+        tile-size (/ game-height vertical-tiles)]
     ;; render the background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
