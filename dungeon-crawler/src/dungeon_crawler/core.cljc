@@ -106,7 +106,7 @@
                              (t/camera camera)
                              (t/translate
                                (- 0 (/ (* 2 tile-size (:map-width tiled-map)) 2))
-                               (- 0 (* 2 tile-size) (/ (* 2 tile-size (:map-height tiled-map)) 2)))
+                               (- 0 (/ (* 2 tile-size (:map-height tiled-map)) 2)))
                              (t/scale
                                (* 2 tile-size (:map-width tiled-map))
                                (* 2 tile-size (:map-height tiled-map))))))
