@@ -164,16 +164,16 @@
                       vec)}))))))))
 
 (defn touching-tile? [{:keys [layers map-width map-height]} layer-name x y width height]
-  (let [[x y] (screen->isometric x y)
+  (let [[x y] (screen->isometric
+                (+ x (/ (- 1 width) 2))
+                (+ y height))
         layer (get layers layer-name)
         start-x (math round x)
         start-y (math round y)
-        end-x (int (+ start-x width))
-        end-y (int (+ start-y height))
-        end-x (cond-> end-x (= end-x start-x) inc)
-        end-y (cond-> end-y (= end-y start-y) inc)
-        tiles (for [tile-x (range start-x end-x)
-                    tile-y (range end-y start-y -1)]
+        end-x (math round (+ start-x width))
+        end-y (math round (+ start-y height))
+        tiles (for [tile-x (range start-x (inc end-x))
+                    tile-y (range start-y (inc end-y))]
                 (get-in layer [(- map-width tile-x) (- map-height tile-y)]))]
     (some? (first (filter pos? (remove nil? tiles))))))
 

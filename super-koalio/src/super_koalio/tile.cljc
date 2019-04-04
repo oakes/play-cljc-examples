@@ -88,10 +88,10 @@
   (let [layer (get layers layer-name)
         start-x (int x)
         start-y (int y)
-        end-x (inc (int (+ x width)))
+        end-x (int (+ x width))
         end-y (int (+ y height))
-        tiles (for [tile-x (range start-x end-x)
-                    tile-y (range end-y start-y -1)]
+        tiles (for [tile-x (range start-x (inc end-x))
+                    tile-y (range start-y (inc end-y))]
                 (get-in layer [tile-y tile-x]))]
     (some? (first (filter pos? (remove nil? tiles))))))
 
