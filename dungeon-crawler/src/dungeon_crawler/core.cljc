@@ -20,6 +20,7 @@
                        :camera (e/->camera true)}))
 
 (def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
+(def tile-scale 2)
 
 (def vertical-tiles 15)
 
@@ -96,8 +97,8 @@
     (when-let [player (:player characters)]
       (let [player-x (* (:x player) tile-size)
             player-y (* (:y player) tile-size)
-            player-width (* (:width player) tile-size)
-            player-height (* (:height player) tile-size)
+            player-width (* (:width player) tile-size tile-scale)
+            player-height (* (:height player) tile-size tile-scale)
             camera (t/translate camera (- player-x offset-x) (- player-y offset-y))]
         ;; render the tiled map
         (when tiled-map-entity
@@ -105,11 +106,12 @@
                              (t/project game-width game-height)
                              (t/camera camera)
                              (t/translate
-                               (- 0 (/ (* 2 tile-size (:map-width tiled-map)) 2))
-                               (- 0 (/ (* 2 tile-size (:map-height tiled-map)) 2)))
+                               (- 0 (/ (* tile-scale tile-size (:map-width tiled-map))
+                                       2))
+                               (- 0 (/ (* tile-scale tile-size (:map-height tiled-map)) 2)))
                              (t/scale
-                               (* 2 tile-size (:map-width tiled-map))
-                               (* 2 tile-size (:map-height tiled-map))))))
+                               (* tile-scale tile-size (:map-width tiled-map))
+                               (* tile-scale tile-size (:map-height tiled-map))))))
         ;; render the player
         (when-let [image (:current-image player)]
           (c/render game
@@ -117,11 +119,11 @@
                 (t/project game-width game-height)
                 (t/camera camera)
                 (t/translate
-                  (- player-x player-width)
-                  (- player-y player-height))
+                  player-x
+                  player-y)
                 (t/scale
-                  (* 2 player-width)
-                  (* 2 player-height)))))
+                  player-width
+                  player-height))))
         ;; change the state to move the player
         (swap! *state update-in [:characters :player]
           (fn [player]
