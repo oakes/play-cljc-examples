@@ -70,10 +70,10 @@
                    rand-spot
                    (* y-diff i))]
           (-> layers
-              (assoc-in ["walls" y x] 0)
-              (assoc-in ["walls" y (inc x)] 0)
-              (assoc-in ["walls" (inc y) x] 0)
-              (assoc-in ["walls" (inc y) (inc x)] 0))))
+              (assoc-in ["walls" x y] 0)
+              (assoc-in ["walls" (inc x) y] 0)
+              (assoc-in ["walls" x (inc y)] 0)
+              (assoc-in ["walls" (inc x) (inc y)] 0))))
       layers
       (range size))))
 
