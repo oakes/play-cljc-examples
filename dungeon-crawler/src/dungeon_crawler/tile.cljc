@@ -168,10 +168,10 @@
                 (+ x (/ (- 1 width) 2))
                 (+ y height))
         layer (get layers layer-name)
-        start-x (math round x)
-        start-y (math round y)
-        end-x (math round (+ start-x width))
-        end-y (math round (+ start-y height))
+        start-x (math round (float x))
+        start-y (math round (float y))
+        end-x (math round (float (+ start-x width)))
+        end-y (math round (float (+ start-y height)))
         tiles (for [tile-x (range start-x (inc end-x))
                     tile-y (range start-y (inc end-y))]
                 (get-in layer [(- map-width tile-x) (- map-height tile-y)]))]
