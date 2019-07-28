@@ -87,28 +87,25 @@
          :as state} @*state
         game-width (utils/get-width game)
         game-height (utils/get-height game)
-        offset-x (/ game-width 2)
-        offset-y (/ game-height 2)
-        tile-size (/ game-height vertical-tiles)]
+        scaled-tile-size (/ game-height vertical-tiles)
+        offset-x (/ game-width 2 scaled-tile-size)
+        offset-y (/ game-height 2 scaled-tile-size)]
     ;; render the background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
     ;; get the current player image to display
-    (when-let [player (:player characters)]
-      (let [player-x (* (:x player) tile-size)
-            player-y (* (:y player) tile-size)
-            player-width (* (:width player) tile-size tile-scale)
-            player-height (* (:height player) tile-size tile-scale)
-            camera (t/translate camera (- player-x offset-x) (- player-y offset-y))]
+    (when-let [{:keys [x y width height current-image]} (:player characters)]
+      (let [player-width (* width tile-scale)
+            player-height (* height tile-scale)
+            camera (t/translate camera (- x offset-x) (- y offset-y))]
         ;; render the player
-        (when-let [image (:current-image player)]
+        (when current-image
           (c/render game
-            (-> image
+            (-> current-image
                 (t/project game-width game-height)
+                (t/scale scaled-tile-size scaled-tile-size)
                 (t/camera camera)
-                (t/translate
-                  player-x
-                  player-y)
+                (t/translate x y)
                 (t/scale
                   player-width
                   player-height))))
@@ -116,14 +113,14 @@
         (when tiled-map-entity
           (c/render game (-> tiled-map-entity
                              (t/project game-width game-height)
+                             (t/scale scaled-tile-size scaled-tile-size)
                              (t/camera camera)
-                             (t/translate
-                               (- 0 (/ (* tile-scale tile-size (:map-width tiled-map))
-                                       2))
-                               (- 0 (/ (* tile-scale tile-size (:map-height tiled-map)) 2)))
                              (t/scale
-                               (* tile-scale tile-size (:map-width tiled-map))
-                               (* tile-scale tile-size (:map-height tiled-map))))))
+                               (* (:map-width tiled-map) tile-scale)
+                               (* (:map-height tiled-map) tile-scale))
+                             (t/translate
+                               (- (/ 1 2))
+                               (- (/ 1 2))))))
         ;; change the state to move the player
         (swap! *state update-in [:characters :player]
           (fn [player]

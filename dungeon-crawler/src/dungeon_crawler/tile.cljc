@@ -31,15 +31,16 @@
    0  0  1])
 
 (defn transform-tile [tile x y width height tile-width tile-height]
-  (let [[x y] (isometric->screen x y)
-        x (* x (/ tile-width 2))
-        y (* y (/ tile-height 2))]
+  (let [[x y] (isometric->screen x y)]
     (-> tile
         (t/project width height)
-        (t/translate
-          (+ x (/ width 2) (- (/ tile-width 2)))
-          (+ y tile-height))
+        (t/translate (/ width 2) 0)
         (t/scale tile-width tile-height)
+        (t/translate
+          (- (/ x 2)
+             1/2)
+          (+ (/ y 2)
+             1))
         (update-in [:uniforms 'u_matrix] #(m/multiply-matrices 3 flip-y-matrix %)))))
 
 (def ^:const cols 4)
@@ -95,8 +96,7 @@
         map-height (-> parsed :attrs :height)
         tileset (first (filter #(= :tileset (:tag %)) (:content parsed)))
         image (first (filter #(= :image (:tag %)) (:content tileset)))
-        tile-width (-> tileset :attrs :tilewidth)
-        tile-height (-> tileset :attrs :tileheight)
+        {{:keys [tilewidth tileheight]} :attrs} tileset
         layers (->> parsed :content
                     (filter #(= :layer (:tag %)))
                     (map #(vector
@@ -105,8 +105,8 @@
                     (into {}))]
     (utils/get-image (-> image :attrs :source)
       (fn [{:keys [data width height]}]
-        (let [entity-width (* tile-width map-width)
-              entity-height (* tile-height map-height)
+        (let [entity-width (* tilewidth map-width)
+              entity-height (* tileheight map-height)
               iso-tile-width 64
               iso-tile-height 32
               iso-entity-width (* iso-tile-width map-width)
@@ -114,16 +114,16 @@
               outer-entity (e/->image-entity game nil entity-width entity-height)
               inner-entity (c/compile game (-> (e/->image-entity game data width height)
                                                (assoc :viewport {:x 0 :y 0 :width entity-width :height entity-height})))
-              tiles-vert (/ height tile-height)
-              tiles-horiz (/ width tile-width)
+              tiles-vert (/ height tileheight)
+              tiles-horiz (/ width tilewidth)
               images (vec
                        (for [y (range tiles-vert)
                              x (range tiles-horiz)]
                          (t/crop inner-entity
-                           (* x tile-width)
-                           (* y tile-height)
-                           tile-width
-                           tile-height)))
+                           (* x tilewidth)
+                           (* y tileheight)
+                           tilewidth
+                           tileheight)))
               partitioned-layers (reduce-kv
                                    (fn [m k tiles]
                                      (assoc m k (->> tiles
@@ -141,7 +141,17 @@
                                          (apply concat)
                                          vec)))
                        {}
-                       partitioned-layers)]
+                       partitioned-layers)
+              tiles (->> (for [layer ["walls"]
+                               i (range (count (get layers layer)))
+                               :let [x (mod i map-width)
+                                     y (int (/ i map-width))
+                                     id (dec (nth (get layers layer) i))]
+                               :when (>= id 0)]
+                           (let [image (nth images id)]
+                             (transform-tile image x y iso-entity-width iso-entity-height iso-tile-width iso-tile-height)))
+                         (sort-by #(get-in % [:uniforms 'u_matrix 7]) <)
+                         vec)]
           (callback
             {:layers partitioned-layers
              :map-width map-width
@@ -151,17 +161,7 @@
                 :width iso-entity-width
                 :height iso-entity-height
                 :render-to-texture
-                {'u_image
-                 (->> (for [layer ["walls"]
-                            i (range (count (get layers layer)))
-                            :let [x (mod i map-width)
-                                  y (int (/ i map-width))
-                                  id (dec (nth (get layers layer) i))]
-                            :when (>= id 0)]
-                        (let [image (nth images id)]
-                          (transform-tile image x y iso-entity-width iso-entity-height iso-tile-width iso-tile-height)))
-                      (sort-by #(get-in % [:uniforms 'u_matrix 7]) <)
-                      vec)}))))))))
+                {'u_image tiles}))))))))
 
 (defn touching-tile? [{:keys [layers map-width map-height]} layer-name x y width height]
   (let [[x y] (screen->isometric
