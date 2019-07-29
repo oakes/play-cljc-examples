@@ -7,8 +7,8 @@
             [play-cljc.transforms :as t]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])
-            #?(:clj  [dungeon-crawler.tile :as tile :refer [read-tiled-map]]
-               :cljs [dungeon-crawler.tile :as tile :refer-macros [read-tiled-map]])))
+            #?(:clj  [dungeon-crawler.tiles :as tiles :refer [read-tiled-map]]
+               :cljs [dungeon-crawler.tiles :as tiles :refer-macros [read-tiled-map]])))
   
 (defonce *state (atom {:mouse-x 0
                        :mouse-y 0
@@ -20,9 +20,8 @@
                        :camera (e/->camera true)}))
 
 (def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
-(def tile-scale 2)
 
-(def vertical-tiles 15)
+(def vertical-tiles 7)
 
 (defn create-grid [image tile-size mask-size]
   (let [offset (-> tile-size (- mask-size) (/ 2))]
@@ -35,9 +34,9 @@
   (gl game enable (gl game BLEND))
   (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
   ;; load the tiled map
-  (tile/load-tiled-map game tiled-map
-    (fn [tiled-map entity]
-      (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity)
+  (tiles/load-tiled-map game tiled-map
+    (fn [tiled-map entities]
+      (swap! *state assoc :tiled-map tiled-map :tiled-map-entities entities)
       ;; load images and put them in the state atom
       (doseq [[k path] {:player "characters/male_light.png"}]
         (utils/get-image path
@@ -57,7 +56,7 @@
                          (map #(nth % 6) grid))
                   deads (zipmap move/directions
                           (map #(nth % 7) grid))
-                  [x y] (tile/isometric->screen 5 5)
+                  [x y] (tiles/isometric->screen 5 5)
                   character {:moves moves
                              :attacks attacks
                              :specials specials
@@ -82,7 +81,7 @@
   (let [{:keys [pressed-keys
                 characters
                 tiled-map
-                tiled-map-entity
+                tiled-map-entities
                 camera]
          :as state} @*state
         game-width (utils/get-width game)
@@ -95,32 +94,31 @@
                            assoc :width game-width :height game-height))
     ;; get the current player image to display
     (when-let [{:keys [x y width height current-image]} (:player characters)]
-      (let [player-width (* width tile-scale)
-            player-height (* height tile-scale)
-            camera (t/translate camera (- x offset-x) (- y offset-y))]
-        ;; render the player
-        (when current-image
-          (c/render game
-            (-> current-image
-                (t/project game-width game-height)
-                (t/scale scaled-tile-size scaled-tile-size)
-                (t/camera camera)
-                (t/translate x y)
-                (t/scale
-                  player-width
-                  player-height))))
-        ;; render the tiled map
-        (when tiled-map-entity
-          (c/render game (-> tiled-map-entity
-                             (t/project game-width game-height)
-                             (t/scale scaled-tile-size scaled-tile-size)
-                             (t/camera camera)
-                             (t/scale
-                               (* (:map-width tiled-map) tile-scale)
-                               (* (:map-height tiled-map) tile-scale))
-                             (t/translate
-                               (- (/ 1 2))
-                               (- (/ 1 2))))))
+      (let [camera (t/translate camera (- x offset-x) (- y offset-y))
+            min-y (- y offset-y 1)
+            max-y (+ y offset-y)
+            entities (->> tiled-map-entities
+                          (remove (fn [[y-pos]]
+                                    (or (< y-pos min-y)
+                                        (> y-pos max-y))))
+                          (mapv (fn [y-pos-and-entity]
+                                  (update y-pos-and-entity 1
+                                          (fn [entity]
+                                            (-> entity
+                                                (t/project game-width game-height)
+                                                (t/scale scaled-tile-size scaled-tile-size)
+                                                (t/camera camera))))))
+                          (cons [y (-> current-image
+                                       (t/project game-width game-height)
+                                       (t/scale scaled-tile-size scaled-tile-size)
+                                       (t/camera camera)
+                                       (t/translate x y)
+                                       (t/scale width height))])
+                          (sort-by first <)
+                          vec)]
+        (run! (fn [[y-pos entity]]
+                (c/render game entity))
+              entities)
         ;; change the state to move the player
         (swap! *state update-in [:characters :player]
           (fn [player]

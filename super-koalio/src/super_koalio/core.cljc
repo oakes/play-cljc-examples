@@ -7,8 +7,8 @@
             [play-cljc.transforms :as t]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])
-            #?(:clj  [super-koalio.tile :as tile :refer [read-tiled-map]]
-               :cljs [super-koalio.tile :as tile :refer-macros [read-tiled-map]])))
+            #?(:clj  [super-koalio.tiles :as tiles :refer [read-tiled-map]]
+               :cljs [super-koalio.tiles :as tiles :refer-macros [read-tiled-map]])))
 
 (def koala-width 18)
 (def koala-height 26)
@@ -57,7 +57,7 @@
           :walk2 walk2
           :walk3 walk3))))
   ;; load the tiled map
-  (tile/load-tiled-map game tiled-map
+  (tiles/load-tiled-map game tiled-map
     (fn [tiled-map entity]
       (swap! *state assoc :tiled-map tiled-map :tiled-map-entity entity))))
 
@@ -80,12 +80,9 @@
          :as state} @*state
         game-width (utils/get-width game)
         game-height (utils/get-height game)
-        offset (/ game-width 2)
-        tile-size (/ game-height (:map-height tiled-map))
-        player-x (* player-x tile-size)
-        player-y (* player-y tile-size)
-        player-width (* player-width tile-size)
-        player-height (* player-height tile-size)
+        {:keys [map-height]} tiled-map
+        scaled-tile-size (/ game-height map-height)
+        offset (/ game-width 2 scaled-tile-size)
         camera (t/translate camera (- player-x offset) 0)]
     ;; render the blue background
     (c/render game (update screen-entity :viewport
@@ -94,18 +91,15 @@
     (when tiled-map-entity
       (c/render game (-> tiled-map-entity
                          (t/project game-width game-height)
-                         (t/camera camera)
-                         (t/scale
-                           (* (/ (:width tiled-map-entity)
-                                 (:height tiled-map-entity))
-                              game-height)
-                           game-height))))
+                         (t/scale scaled-tile-size scaled-tile-size)
+                         (t/camera camera))))
     ;; get the current player image to display
     (when-let [player (get player-images player-image-key)]
       ;; render the player
       (c/render game
         (-> player
             (t/project game-width game-height)
+            (t/scale scaled-tile-size scaled-tile-size)
             (t/camera camera)
             (t/translate (cond-> player-x
                                  (= direction :left)

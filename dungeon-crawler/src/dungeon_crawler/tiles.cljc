@@ -1,10 +1,12 @@
-(ns dungeon-crawler.tile
+(ns dungeon-crawler.tiles
   (:require [dungeon-crawler.utils :as utils]
             [clojure.set :as set]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
+            [play-cljc.gl.entities-instanced :as ei]
+            [play-cljc.gl.tiles :as tiles]
             #?@(:clj [[clojure.java.io :as io]
                       [tile-soup.core :as ts]])
             #?(:clj  [play-cljc.macros-java :refer [math]]
@@ -17,31 +19,22 @@
               ts/parse
               pr-str)))
 
+;; http://clintbellanger.net/articles/isometric_math/
+
+(def ^:const tile-width-half 1/2)
+(def ^:const tile-height-half 1/4)
+
 (defn isometric->screen [x y]
-  [(- x y)
-   (/ (+ x y) 2)])
+  [(* (- x y) tile-width-half)
+   (* (+ x y) tile-height-half)])
 
 (defn screen->isometric [x y]
-  (let [y (- y (/ x 2))]
-    [(+ x y) y]))
-
-(def flip-y-matrix
-  [1  0  0
-   0 -1  0
-   0  0  1])
-
-(defn transform-tile [tile x y width height tile-width tile-height]
-  (let [[x y] (isometric->screen x y)]
-    (-> tile
-        (t/project width height)
-        (t/translate (/ width 2) 0)
-        (t/scale tile-width tile-height)
-        (t/translate
-          (- (/ x 2)
-             1/2)
-          (+ (/ y 2)
-             1))
-        (update-in [:uniforms 'u_matrix] #(m/multiply-matrices 3 flip-y-matrix %)))))
+  [(/ (+ (/ x tile-width-half)
+         (/ y tile-height-half))
+      2)
+   (/ (- (/ y tile-height-half)
+         (/ x tile-width-half))
+      2)])
 
 (def ^:const cols 4)
 (def ^:const rows 4)
@@ -107,23 +100,13 @@
       (fn [{:keys [data width height]}]
         (let [entity-width (* tilewidth map-width)
               entity-height (* tileheight map-height)
-              iso-tile-width 64
-              iso-tile-height 32
-              iso-entity-width (* iso-tile-width map-width)
-              iso-entity-height (* iso-tile-height map-width)
-              outer-entity (e/->image-entity game nil entity-width entity-height)
-              inner-entity (c/compile game (-> (e/->image-entity game data width height)
-                                               (assoc :viewport {:x 0 :y 0 :width entity-width :height entity-height})))
+              entity (tiles/->tile-entity (e/->image-entity game data width height) tilewidth tileheight)
               tiles-vert (/ height tileheight)
               tiles-horiz (/ width tilewidth)
               images (vec
                        (for [y (range tiles-vert)
                              x (range tiles-horiz)]
-                         (t/crop inner-entity
-                           (* x tilewidth)
-                           (* y tileheight)
-                           tilewidth
-                           tileheight)))
+                         (t/crop entity x y 1 1)))
               partitioned-layers (reduce-kv
                                    (fn [m k tiles]
                                      (assoc m k (->> tiles
@@ -142,26 +125,28 @@
                                          vec)))
                        {}
                        partitioned-layers)
-              tiles (->> (for [layer ["walls"]
-                               i (range (count (get layers layer)))
-                               :let [x (mod i map-width)
-                                     y (int (/ i map-width))
-                                     id (dec (nth (get layers layer) i))]
-                               :when (>= id 0)]
-                           (let [image (nth images id)]
-                             (transform-tile image x y iso-entity-width iso-entity-height iso-tile-width iso-tile-height)))
-                         (sort-by #(get-in % [:uniforms 'u_matrix 7]) <)
-                         vec)]
+              entities (->> (for [layer ["walls"]
+                                  i (range (count (get layers layer)))
+                                  :let [x (mod i map-width)
+                                        y (int (/ i map-width))
+                                        id (dec (nth (get layers layer) i))]
+                                  :when (>= id 0)]
+                              (let [image (nth images id)
+                                    [x y] (isometric->screen x y)
+                                    x (- x 1/2)
+                                    y (- y 1)]
+                                [y (t/translate image x y)]))
+                            (group-by first)
+                            (mapv
+                              (fn [[y tiles]]
+                                (let [tiles (mapv second tiles)
+                                      entity (ei/->instanced-entity entity (count tiles))]
+                                  [y (c/compile game (reduce-kv ei/assoc entity tiles))]))))]
           (callback
             {:layers partitioned-layers
              :map-width map-width
              :map-height map-height}
-            (c/compile game
-              (assoc outer-entity
-                :width iso-entity-width
-                :height iso-entity-height
-                :render-to-texture
-                {'u_image tiles}))))))))
+            entities))))))
 
 (defn touching-tile? [{:keys [layers map-width map-height]} layer-name x y width height]
   (let [[x y] (screen->isometric
@@ -174,6 +159,6 @@
         end-y (math round (float (+ start-y height)))
         tiles (for [tile-x (range start-x (inc end-x))
                     tile-y (range start-y (inc end-y))]
-                (get-in layer [(- map-width tile-x) (- map-height tile-y)]))]
+                (get-in layer [tile-y tile-x]))]
     (some? (first (filter pos? (remove nil? tiles))))))
 

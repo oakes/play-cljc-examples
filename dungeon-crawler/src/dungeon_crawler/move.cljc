@@ -1,6 +1,6 @@
 (ns dungeon-crawler.move
   (:require [dungeon-crawler.utils :as utils]
-            [dungeon-crawler.tile :as tile]
+            [dungeon-crawler.tiles :as tiles]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
@@ -85,9 +85,9 @@
   (let [old-x (- x x-change)
         old-y (- y y-change)]
     (merge character
-      (when (tile/touching-tile? tiled-map "walls" x old-y width height)
+      (when (tiles/touching-tile? tiled-map "walls" x old-y width height)
         {:x-velocity 0 :x-change 0 :x old-x})
-      (when (tile/touching-tile? tiled-map "walls" old-x y width height)
+      (when (tiles/touching-tile? tiled-map "walls" old-x y width height)
         {:y-velocity 0 :y-change 0 :y old-y}))))
 
 (defn animate
