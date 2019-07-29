@@ -1,5 +1,6 @@
 (ns super-koalio.move
-  (:require [super-koalio.utils :as utils]
+  (:require [play-cljc.instances :as i]
+            [super-koalio.utils :as utils]
             [super-koalio.tiles :as tiles]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
@@ -68,17 +69,27 @@
   [{:keys [player-x player-y
            player-width player-height
            x-change y-change
-           tiled-map]
+           tiled-map tiled-map-entity y-velocity]
     :as state}]
   (let [old-x (- player-x x-change)
         old-y (- player-y y-change)
         up? (neg? y-change)]
     (merge state
-      (when (tiles/touching-tile? tiled-map "walls" player-x old-y player-width player-height)
+      (when (tiles/touching-tile tiled-map "walls" player-x old-y player-width player-height)
         {:x-velocity 0 :x-change 0 :player-x old-x})
-      (when (tiles/touching-tile? tiled-map "walls" old-x player-y player-width player-height)
-        {:y-velocity 0 :y-change 0 :player-y old-y
-         :can-jump? (not up?) :started? true}))))
+      (when-let [tile (tiles/touching-tile tiled-map "walls" old-x player-y player-width player-height)]
+        (merge
+          {:y-velocity 0 :y-change 0 :player-y old-y
+           :can-jump? (not up?) :started? true}
+          ;; if we are going up, destroy whatever tile we hit
+          (when (neg? y-velocity)
+            (let [{:keys [layer tile-x tile-y tile-id]} tile]
+              {:tiled-map-entity (i/dissoc tiled-map-entity tile-id)
+               :tiled-map (-> tiled-map
+                              (update :tiles (fn [tiles]
+                                               (-> (subvec tiles 0 tile-id)
+                                                   (into (subvec tiles (inc tile-id))))))
+                              (assoc-in [:layers layer tile-x tile-y] nil))})))))))
 
 (defn animate
   [{:keys [total-time]}

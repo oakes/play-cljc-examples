@@ -1,11 +1,11 @@
 (ns super-koalio.tiles
   (:require [super-koalio.utils :as utils]
+            [super-koalio.tile-entity :as tiles]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
+            [play-cljc.instances :as i]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
-            [play-cljc.gl.entities-instanced :as ei]
-            [play-cljc.gl.tiles :as tiles]
             #?@(:clj [[clojure.java.io :as io]
                       [tile-soup.core :as ts]])))
 
@@ -37,38 +37,52 @@
                        (for [y (range tiles-vert)
                              x (range tiles-horiz)]
                          (t/crop entity x y 1 1)))
-              tiles (vec
-                      (for [layer ["background" "walls"]
-                            i (range (count (get layers layer)))
-                            :let [x (mod i map-width)
-                                  y (int (/ i map-width))
-                                  id (dec (nth (get layers layer) i))]
-                            :when (>= id 0)]
-                        (t/translate (nth images id) x y)))
-              entity (ei/->instanced-entity entity (count tiles))
-              entity (reduce-kv ei/assoc entity tiles)
+              {:keys [layers tiles entities]}
+              (reduce
+                (fn [m layer-name]
+                  (let [layer (get layers layer-name)]
+                    (reduce
+                      (fn [m i]
+                        (let [x (mod i map-width)
+                              y (int (/ i map-width))
+                              image-id (dec (nth layer i))
+                              tile-map (when (>= image-id 0)
+                                         {:layer layer-name :tile-x x :tile-y y})]
+                          (cond-> m
+                                  true
+                                  (assoc-in [:layers layer-name x y] tile-map)
+                                  tile-map
+                                  (update :tiles conj tile-map)
+                                  tile-map
+                                  (update :entities conj
+                                          (t/translate (nth images image-id) x y)))))
+                      m
+                      (range (count layer)))))
+                {:layers {}
+                 :tiles []
+                 :entities []}
+                ["background" "walls"])
+              entity (i/->instanced-entity entity)
               entity (c/compile game entity)
-              partitioned-layers (reduce-kv
-                                   (fn [m k v]
-                                     (assoc m k (->> v
-                                                     (partition map-width)
-                                                     (mapv vec))))
-                                   {}
-                                   layers)]
+              entity (reduce-kv i/assoc entity entities)]
           (callback
-            {:layers partitioned-layers
+            {:layers layers
+             :tiles tiles
              :map-width map-width
              :map-height map-height}
             entity))))))
 
-(defn touching-tile? [{:keys [layers]} layer-name x y width height]
+(defn touching-tile [{:keys [layers tiles] :as tiled-map} layer-name x y width height]
   (let [layer (get layers layer-name)
         start-x (int x)
         start-y (int y)
         end-x (int (+ x width))
         end-y (int (+ y height))
-        tiles (for [tile-x (range start-x (inc end-x))
-                    tile-y (range start-y (inc end-y))]
-                (get-in layer [tile-y tile-x]))]
-    (some? (first (filter pos? (remove nil? tiles))))))
+        near-tiles (for [tile-x (range start-x (inc end-x))
+                         tile-y (range start-y (inc end-y))]
+                     (get-in layer [tile-x tile-y]))]
+    (when-let [tile (some->> near-tiles (remove nil?) first)]
+      (let [index (.indexOf tiles tile)]
+        (when (>= index 0)
+          (assoc tile :tile-id index))))))
 

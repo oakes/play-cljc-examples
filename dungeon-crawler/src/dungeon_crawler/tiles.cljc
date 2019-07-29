@@ -1,12 +1,12 @@
 (ns dungeon-crawler.tiles
   (:require [dungeon-crawler.utils :as utils]
+            [dungeon-crawler.tile-entity :as tiles]
             [clojure.set :as set]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
+            [play-cljc.instances :as i]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
-            [play-cljc.gl.entities-instanced :as ei]
-            [play-cljc.gl.tiles :as tiles]
             #?@(:clj [[clojure.java.io :as io]
                       [tile-soup.core :as ts]])
             #?(:clj  [play-cljc.macros-java :refer [math]]
@@ -21,8 +21,8 @@
 
 ;; http://clintbellanger.net/articles/isometric_math/
 
-(def ^:const tile-width-half 1/2)
-(def ^:const tile-height-half 1/4)
+(def ^:const tile-width-half (/ 1 2))
+(def ^:const tile-height-half (/ 1 4))
 
 (defn isometric->screen [x y]
   [(* (- x y) tile-width-half)
@@ -125,6 +125,7 @@
                                          vec)))
                        {}
                        partitioned-layers)
+              entity (c/compile game (i/->instanced-entity entity))
               entities (->> (for [layer ["walls"]
                                   i (range (count (get layers layer)))
                                   :let [x (mod i map-width)
@@ -133,15 +134,14 @@
                                   :when (>= id 0)]
                               (let [image (nth images id)
                                     [x y] (isometric->screen x y)
-                                    x (- x 1/2)
+                                    x (- x (/ 1 2))
                                     y (- y 1)]
                                 [y (t/translate image x y)]))
                             (group-by first)
                             (mapv
                               (fn [[y tiles]]
-                                (let [tiles (mapv second tiles)
-                                      entity (ei/->instanced-entity entity (count tiles))]
-                                  [y (c/compile game (reduce-kv ei/assoc entity tiles))]))))]
+                                (let [tiles (mapv second tiles)]
+                                  [y (reduce-kv i/assoc entity tiles)]))))]
           (callback
             {:layers partitioned-layers
              :map-width map-width
