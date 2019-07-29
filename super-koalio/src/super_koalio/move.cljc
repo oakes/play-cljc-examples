@@ -73,23 +73,24 @@
     :as state}]
   (let [old-x (- player-x x-change)
         old-y (- player-y y-change)
-        up? (neg? y-change)]
-    (merge state
-      (when (tiles/touching-tile tiled-map "walls" player-x old-y player-width player-height)
-        {:x-velocity 0 :x-change 0 :player-x old-x})
-      (when-let [tile (tiles/touching-tile tiled-map "walls" old-x player-y player-width player-height)]
-        (merge
-          {:y-velocity 0 :y-change 0 :player-y old-y
-           :can-jump? (not up?) :started? true}
-          ;; if we are going up, destroy whatever tile we hit
-          (when (neg? y-velocity)
-            (let [{:keys [layer tile-x tile-y tile-id]} tile]
-              {:tiled-map-entity (i/dissoc tiled-map-entity tile-id)
-               :tiled-map (-> tiled-map
-                              (update :tiles (fn [tiles]
-                                               (-> (subvec tiles 0 tile-id)
-                                                   (into (subvec tiles (inc tile-id))))))
-                              (assoc-in [:layers layer tile-x tile-y] nil))})))))))
+        up? (neg? y-change)
+        horiz-tile (tiles/touching-tile tiled-map "walls" player-x old-y player-width player-height)
+        vert-tile (tiles/touching-tile tiled-map "walls" old-x player-y player-width player-height)
+        {:keys [layer tile-x tile-y tile-id]} vert-tile]
+    (cond-> state
+            horiz-tile
+            (assoc :x-velocity 0 :x-change 0 :player-x old-x)
+            vert-tile
+            (assoc :y-velocity 0 :y-change 0 :player-y old-y
+                   :can-jump? (not up?) :started? true)
+            ;; if we are going up, destroy whatever tile we hit
+            (and vert-tile (neg? y-velocity))
+            (assoc :tiled-map-entity (i/dissoc tiled-map-entity tile-id)
+                   :tiled-map (-> tiled-map
+                                  (update :tiles (fn [tiles]
+                                                   (-> (subvec tiles 0 tile-id)
+                                                       (into (subvec tiles (inc tile-id))))))
+                                  (assoc-in [:layers layer tile-x tile-y] nil))))))
 
 (defn animate
   [{:keys [total-time]}

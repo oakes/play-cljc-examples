@@ -84,11 +84,11 @@
               :as character}]
   (let [old-x (- x x-change)
         old-y (- y y-change)]
-    (merge character
-      (when (tiles/touching-tile? tiled-map "walls" x old-y width height)
-        {:x-velocity 0 :x-change 0 :x old-x})
-      (when (tiles/touching-tile? tiled-map "walls" old-x y width height)
-        {:y-velocity 0 :y-change 0 :y old-y}))))
+    (cond-> character
+            (tiles/touching-tile? tiled-map "walls" x old-y width height)
+            (assoc :x-velocity 0 :x-change 0 :x old-x)
+            (tiles/touching-tile? tiled-map "walls" old-x y width height)
+            (assoc :y-velocity 0 :y-change 0 :y old-y))))
 
 (defn animate
   [{:keys [total-time]}
