@@ -1,6 +1,6 @@
 (ns super-koalio.tiles
   (:require [super-koalio.utils :as utils]
-            [super-koalio.tile-entity :as tiles]
+            [play-cljc.gl.tiles :as tiles]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
             [play-cljc.instances :as i]

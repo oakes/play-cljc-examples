@@ -1,6 +1,6 @@
 (ns dungeon-crawler.tiles
   (:require [dungeon-crawler.utils :as utils]
-            [dungeon-crawler.tile-entity :as tiles]
+            [play-cljc.gl.tiles :as tiles]
             [clojure.set :as set]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
