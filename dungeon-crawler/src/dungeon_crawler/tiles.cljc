@@ -1,6 +1,5 @@
 (ns dungeon-crawler.tiles
   (:require [dungeon-crawler.utils :as utils]
-            [play-cljc.gl.tiles :as tiles]
             [clojure.set :as set]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
@@ -100,13 +99,17 @@
       (fn [{:keys [data width height]}]
         (let [entity-width (* tilewidth map-width)
               entity-height (* tileheight map-height)
-              entity (tiles/->tile-entity (e/->image-entity game data width height) tilewidth tileheight)
+              entity (e/->image-entity game data width height)
               tiles-vert (/ height tileheight)
               tiles-horiz (/ width tilewidth)
               images (vec
                        (for [y (range tiles-vert)
                              x (range tiles-horiz)]
-                         (t/crop entity x y 1 1)))
+                         (t/crop entity
+                                 (* x tilewidth)
+                                 (* y tileheight)
+                                 tilewidth
+                                 tileheight)))
               partitioned-layers (reduce-kv
                                    (fn [m k tiles]
                                      (assoc m k (->> tiles

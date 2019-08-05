@@ -1,6 +1,5 @@
 (ns super-koalio.tiles
   (:require [super-koalio.utils :as utils]
-            [play-cljc.gl.tiles :as tiles]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
             [play-cljc.instances :as i]
@@ -30,13 +29,17 @@
                     (into {}))]
     (utils/get-image (-> image :attrs :source)
       (fn [{:keys [data width height]}]
-        (let [entity (tiles/->tile-entity (e/->image-entity game data width height) tilewidth tileheight)
+        (let [entity (e/->image-entity game data width height)
               tiles-vert (/ height tileheight)
               tiles-horiz (/ width tilewidth)
               images (vec
                        (for [y (range tiles-vert)
                              x (range tiles-horiz)]
-                         (t/crop entity x y 1 1)))
+                         (t/crop entity
+                                 (* x tilewidth)
+                                 (* y tileheight)
+                                 tilewidth
+                                 tileheight)))
               {:keys [layers tiles entities]}
               (reduce
                 (fn [m layer-name]
