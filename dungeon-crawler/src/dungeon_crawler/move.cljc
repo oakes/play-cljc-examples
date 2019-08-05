@@ -27,10 +27,10 @@
   (if mouse-button
     (let [x (- mouse-x (/ (utils/get-width game) 2))
           y (- mouse-y (/ (utils/get-height game) 2))
-          x-adjust (if (= y 0)
+          x-adjust (if (== y 0)
                      0
                      (* max-velocity (math abs (/ x y))))
-          y-adjust (if (= x 0)
+          y-adjust (if (== x 0)
                      0
                      (* max-velocity (math abs (/ y x))))]
       [(* (math #?(:clj signum :cljs sign) x)
