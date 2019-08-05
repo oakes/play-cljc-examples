@@ -24,7 +24,9 @@
      (fn [{:keys [data]} baked-font]
        (let [font-entity (text/->font-entity game data baked-font)
              compiled-font-entity (c/compile game font-entity)
+             ;; an entity whose text can't change
              static-entity (c/compile game (text/->text-entity game compiled-font-entity "Hello, world!"))
+             ;; an entity whose text can be set dynamically
              dynamic-entity (c/compile game (i/->instanced-entity font-entity))]
          (swap! *state assoc
                 :font-entity font-entity
@@ -45,12 +47,29 @@
     ;; render the blue background
     (c/render game (update screen-entity :viewport
                            assoc :width game-width :height game-height))
-    ;; render the font
     (when (and static-entity dynamic-entity)
+      ;; render the static text
       (c/render game (-> static-entity
                          (t/project game-width game-height)
-                         (t/scale (:width static-entity) (:height static-entity))))
-      (let [text ["Counter:" (str counter)]]
+                         (t/scale (:width static-entity) (:height static-entity))
+                         (t/translate 0 0)))
+      ;; render the colored text
+      (c/render game (-> (reduce-kv
+                           chars/assoc-char
+                           dynamic-entity
+                           (mapv (fn [ch color]
+                                   (-> font-entity
+                                       (chars/crop-char ch)
+                                       (t/color color)))
+                             "Colors"
+                             (cycle
+                               [[1 0 0 1]
+                                [0 1 0 1]
+                                [0 0 1 1]])))
+                         (t/project game-width game-height)
+                         (t/translate 0 100)))
+      ;; render the frame count
+      (let [text ["Frame count:" (str counter)]]
         (c/render game (-> (reduce
                              (partial apply chars/assoc-char)
                              dynamic-entity
