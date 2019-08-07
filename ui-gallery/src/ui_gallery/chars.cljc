@@ -20,7 +20,11 @@
   ([text-entity index char-entity]
    (assoc-char text-entity 0 index char-entity))
   ([{:keys [baked-font characters] :as text-entity} line-num index {:keys [baked-char] :as char-entity}]
-   (let [line (or (get characters line-num) [])
+   (let [characters (loop [chars characters]
+                      (if (<= (count chars) line-num)
+                        (recur (conj chars []))
+                        chars))
+         line (get characters line-num)
          prev-chars (subvec line 0 index)
          prev-xadv (reduce + 0 (map #(-> % :baked-char :xadv) prev-chars))
          x-total (+ (:xadv baked-char) prev-xadv)
@@ -31,7 +35,7 @@
          line (assoc line index (assoc char-entity :x-total x-total))
          next-char (get line (inc index))]
      (-> text-entity
-         (assoc-in [:characters line-num] line)
+         (assoc :characters (assoc characters line-num line))
          (i/assoc (+ index prev-count)
                   (-> char-entity
                       (update-in [:uniforms 'u_translate_matrix]
