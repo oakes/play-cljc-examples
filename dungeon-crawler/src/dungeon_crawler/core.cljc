@@ -77,7 +77,7 @@
   {:viewport {:x 0 :y 0 :width 0 :height 0}
    :clear {:color [(/ 150 255) (/ 150 255) (/ 150 255) 1] :depth 1}})
 
-(defn run [game]
+(defn tick [game]
   (let [{:keys [pressed-keys
                 characters
                 tiled-map

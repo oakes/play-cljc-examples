@@ -37,7 +37,7 @@
   {:viewport {:x 0 :y 0 :width 0 :height 0}
    :clear {:color [(/ 173 255) (/ 216 255) (/ 230 255) 1] :depth 1}})
 
-(defn run [game]
+(defn tick [game]
   (let [game-width (utils/get-width game)
         game-height (utils/get-height game)
         {:keys [font-entity
