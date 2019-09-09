@@ -44,41 +44,42 @@
                 static-entity
                 dynamic-entity
                 counter]} @*state]
-    ;; render the blue background
-    (c/render game (update screen-entity :viewport
-                           assoc :width game-width :height game-height))
-    (when (and static-entity dynamic-entity)
-      ;; render the static text
-      (c/render game (-> static-entity
-                         (t/project game-width game-height)
-                         (t/scale (:width static-entity) (:height static-entity))
-                         (t/translate 0 0)))
-      ;; render the colored text
-      (c/render game (-> (reduce-kv
-                           chars/assoc-char
-                           dynamic-entity
-                           (mapv (fn [ch color]
-                                   (-> font-entity
-                                       (chars/crop-char ch)
-                                       (t/color color)))
-                             "Colors"
-                             (cycle
-                               [[1 0 0 1]
-                                [0 1 0 1]
-                                [0 0 1 1]])))
-                         (t/project game-width game-height)
-                         (t/translate 0 100)))
-      ;; render the frame count
-      (let [text ["Frame count:" (str counter)]]
-        (c/render game (-> (reduce
-                             (partial apply chars/assoc-char)
-                             dynamic-entity
-                             (for [line-num (range (count text))
-                                   char-num (range (count (nth text line-num)))
-                                   :let [ch (get-in text [line-num char-num])]]
-                               [line-num char-num (chars/crop-char font-entity ch)]))
+    (when (and (pos? game-width) (pos? game-height))
+      ;; render the blue background
+      (c/render game (update screen-entity :viewport
+                             assoc :width game-width :height game-height))
+      (when (and static-entity dynamic-entity)
+        ;; render the static text
+        (c/render game (-> static-entity
                            (t/project game-width game-height)
-                           (t/translate 0 200))))))
+                           (t/scale (:width static-entity) (:height static-entity))
+                           (t/translate 0 0)))
+        ;; render the colored text
+        (c/render game (-> (reduce-kv
+                             chars/assoc-char
+                             dynamic-entity
+                             (mapv (fn [ch color]
+                                     (-> font-entity
+                                         (chars/crop-char ch)
+                                         (t/color color)))
+                               "Colors"
+                               (cycle
+                                 [[1 0 0 1]
+                                  [0 1 0 1]
+                                  [0 0 1 1]])))
+                           (t/project game-width game-height)
+                           (t/translate 0 100)))
+        ;; render the frame count
+        (let [text ["Frame count:" (str counter)]]
+          (c/render game (-> (reduce
+                               (partial apply chars/assoc-char)
+                               dynamic-entity
+                               (for [line-num (range (count text))
+                                     char-num (range (count (nth text line-num)))
+                                     :let [ch (get-in text [line-num char-num])]]
+                                 [line-num char-num (chars/crop-char font-entity ch)]))
+                             (t/project game-width game-height)
+                             (t/translate 0 200)))))))
   (swap! *state update :counter inc)
   ;; return the game map
   game)

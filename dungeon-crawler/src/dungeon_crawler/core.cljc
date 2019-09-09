@@ -85,47 +85,48 @@
                 camera]
          :as state} @*state
         game-width (utils/get-width game)
-        game-height (utils/get-height game)
-        scaled-tile-size (/ game-height vertical-tiles)
-        offset-x (/ game-width 2 scaled-tile-size)
-        offset-y (/ game-height 2 scaled-tile-size)]
-    ;; render the background
-    (c/render game (update screen-entity :viewport
-                           assoc :width game-width :height game-height))
-    ;; get the current player image to display
-    (when-let [{:keys [x y width height current-image]} (:player characters)]
-      (let [camera (t/translate camera (- x offset-x) (- y offset-y))
-            min-y (- y offset-y 1)
-            max-y (+ y offset-y)
-            entities (->> tiled-map-entities
-                          (remove (fn [[y-pos]]
-                                    (or (< y-pos min-y)
-                                        (> y-pos max-y))))
-                          (mapv (fn [y-pos-and-entity]
-                                  (update y-pos-and-entity 1
-                                          (fn [entity]
-                                            (-> entity
-                                                (t/project game-width game-height)
-                                                (t/scale scaled-tile-size scaled-tile-size)
-                                                (t/camera camera))))))
-                          (cons [y (-> current-image
-                                       (t/project game-width game-height)
-                                       (t/scale scaled-tile-size scaled-tile-size)
-                                       (t/camera camera)
-                                       (t/translate x y)
-                                       (t/scale width height))])
-                          (sort-by first <)
-                          vec)]
-        (run! (fn [[y-pos entity]]
-                (c/render game entity))
-              entities)
-        ;; change the state to move the player
-        (swap! *state update-in [:characters :player]
-          (fn [player]
-            (->> player
-                 (move/move game state)
-                 (move/prevent-move tiled-map)
-                 (move/animate game)))))))
+        game-height (utils/get-height game)]
+    (when (and (pos? game-width) (pos? game-height))
+      (let [scaled-tile-size (/ game-height vertical-tiles)
+            offset-x (/ game-width 2 scaled-tile-size)
+            offset-y (/ game-height 2 scaled-tile-size)]
+        ;; render the background
+        (c/render game (update screen-entity :viewport
+                               assoc :width game-width :height game-height))
+        ;; get the current player image to display
+        (when-let [{:keys [x y width height current-image]} (:player characters)]
+          (let [camera (t/translate camera (- x offset-x) (- y offset-y))
+                min-y (- y offset-y 1)
+                max-y (+ y offset-y)
+                entities (->> tiled-map-entities
+                              (remove (fn [[y-pos]]
+                                        (or (< y-pos min-y)
+                                            (> y-pos max-y))))
+                              (mapv (fn [y-pos-and-entity]
+                                      (update y-pos-and-entity 1
+                                              (fn [entity]
+                                                (-> entity
+                                                    (t/project game-width game-height)
+                                                    (t/scale scaled-tile-size scaled-tile-size)
+                                                    (t/camera camera))))))
+                              (cons [y (-> current-image
+                                           (t/project game-width game-height)
+                                           (t/scale scaled-tile-size scaled-tile-size)
+                                           (t/camera camera)
+                                           (t/translate x y)
+                                           (t/scale width height))])
+                              (sort-by first <)
+                              vec)]
+            (run! (fn [[y-pos entity]]
+                    (c/render game entity))
+                  entities)
+            ;; change the state to move the player
+            (swap! *state update-in [:characters :player]
+              (fn [player]
+                (->> player
+                     (move/move game state)
+                     (move/prevent-move tiled-map)
+                     (move/animate game)))))))))
   ;; return the game map
   game)
 

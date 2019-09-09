@@ -79,43 +79,44 @@
                 camera]
          :as state} @*state
         game-width (utils/get-width game)
-        game-height (utils/get-height game)
-        {:keys [map-height]} tiled-map
-        scaled-tile-size (/ game-height map-height)
-        offset (/ game-width 2 scaled-tile-size)
-        camera (t/translate camera (- player-x offset) 0)]
-    ;; render the blue background
-    (c/render game (update screen-entity :viewport
-                           assoc :width game-width :height game-height))
-    ;; render the tiled map
-    (when tiled-map-entity
-      (c/render game (-> tiled-map-entity
-                         (t/project game-width game-height)
-                         (t/scale scaled-tile-size scaled-tile-size)
-                         (t/camera camera))))
-    ;; get the current player image to display
-    (when-let [player (get player-images player-image-key)]
-      ;; render the player
-      (c/render game
-        (-> player
-            (t/project game-width game-height)
-            (t/scale scaled-tile-size scaled-tile-size)
-            (t/camera camera)
-            (t/translate (cond-> player-x
+        game-height (utils/get-height game)]
+    (when (and (pos? game-width) (pos? game-height))
+      (let [{:keys [map-height]} tiled-map
+            scaled-tile-size (/ game-height map-height)
+            offset (/ game-width 2 scaled-tile-size)
+            camera (t/translate camera (- player-x offset) 0)]
+        ;; render the blue background
+        (c/render game (update screen-entity :viewport
+                               assoc :width game-width :height game-height))
+        ;; render the tiled map
+        (when tiled-map-entity
+          (c/render game (-> tiled-map-entity
+                             (t/project game-width game-height)
+                             (t/scale scaled-tile-size scaled-tile-size)
+                             (t/camera camera))))
+        ;; get the current player image to display
+        (when-let [player (get player-images player-image-key)]
+          ;; render the player
+          (c/render game
+            (-> player
+                (t/project game-width game-height)
+                (t/scale scaled-tile-size scaled-tile-size)
+                (t/camera camera)
+                (t/translate (cond-> player-x
+                                     (= direction :left)
+                                     (+ player-width))
+                  player-y)
+                (t/scale (cond-> player-width
                                  (= direction :left)
-                                 (+ player-width))
-              player-y)
-            (t/scale (cond-> player-width
-                             (= direction :left)
-                             (* -1))
-              player-height)))
-      ;; change the state to move the player
-      (swap! *state
-        (fn [state]
-          (->> state
-               (move/move game)
-               (move/prevent-move)
-               (move/animate game))))))
+                                 (* -1))
+                  player-height)))
+          ;; change the state to move the player
+          (swap! *state
+            (fn [state]
+              (->> state
+                   (move/move game)
+                   (move/prevent-move)
+                   (move/animate game))))))))
   ;; return the game map
   game)
 
