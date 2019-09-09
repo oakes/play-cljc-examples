@@ -6,33 +6,25 @@ https://clojure.org/guides/deps_and_cli
 To develop in a browser with live code reloading:
 
 ```
-clj -A:dev:linux
-
-clj -A:dev:macos
-
-clj -A:dev:windows
+clj -A:dev
 ```
 
 
 To build a release version for the web:
 
 ```
-clj -A:prod:linux
-
-clj -A:prod:macos
-
-clj -A:prod:windows
+clj -A:prod:play-cljc
 ```
 
 
-To develop the native version on each OS:
+To develop the native version:
 
 ```
-clj -A:dev:linux native
+clj -A:dev native
+
+# NOTE: On Mac OS, you need to add the macos alias:
 
 clj -A:dev:macos native
-
-clj -A:dev:windows native
 ```
 
 
