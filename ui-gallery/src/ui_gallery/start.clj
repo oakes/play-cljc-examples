@@ -2,7 +2,8 @@
   (:require [ui-gallery.core :as c]
             [play-cljc.gl.core :as pc])
   (:import  [org.lwjgl.glfw GLFW Callbacks
-             GLFWCursorPosCallbackI GLFWKeyCallbackI GLFWMouseButtonCallbackI GLFWCharCallbackI]
+             GLFWCursorPosCallbackI GLFWKeyCallbackI GLFWMouseButtonCallbackI
+             GLFWCharCallbackI GLFWWindowSizeCallbackI]
             [org.lwjgl.opengl GL GL41]
             [org.lwjgl.system MemoryUtil]
             [javax.sound.sampled AudioSystem Clip])
@@ -56,11 +57,14 @@
 
 (defn on-char! [window codepoint])
 
+(defn on-resize! [window width height])
+
 (defprotocol Events
   (on-mouse-move [this xpos ypos])
   (on-mouse-click [this button action mods])
   (on-key [this keycode scancode action mods])
   (on-char [this codepoint])
+  (on-resize [this width height])
   (on-tick [this game]))
 
 (defrecord Window [handle])
@@ -75,6 +79,8 @@
     (on-key! handle keycode scancode action mods))
   (on-char [{:keys [handle]} codepoint]
     (on-char! handle codepoint))
+  (on-resize [{:keys [handle]} width height]
+    (on-resize! handle width height))
   (on-tick [this game]
     (c/tick game)))
 
@@ -95,7 +101,11 @@
     (GLFW/glfwSetCharCallback
       (reify GLFWCharCallbackI
         (invoke [this _ codepoint]
-          (on-char window codepoint))))))
+          (on-char window codepoint))))
+    (GLFW/glfwSetWindowSizeCallback
+      (reify GLFWWindowSizeCallbackI
+        (invoke [this _ width height]
+          (on-resize window width height))))))
 
 (defn ->window []
   (when-not (GLFW/glfwInit)
