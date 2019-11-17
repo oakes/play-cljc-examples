@@ -5,22 +5,83 @@
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
+            [clara.rules :as clara]
+            [clarax.rules :as clarax]
+            #?(:clj  [clarax.macros-java :refer [->session]]
+               :cljs [clarax.macros-js :refer-macros [->session]])
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])
             #?(:clj  [dungeon-crawler.tiles :as tiles :refer [read-tiled-map]]
                :cljs [dungeon-crawler.tiles :as tiles :refer-macros [read-tiled-map]])))
-  
-(defonce *state (atom {:mouse-x 0
-                       :mouse-y 0
-                       :mouse-button nil
-                       :pressed-keys #{}
-                       :characters {}
-                       :tiled-map nil
-                       :tiled-map-entity nil
-                       :camera (e/->camera true)}))
+
+(defrecord Mouse [x y button])
+(defrecord Keys [pressed])
+(defrecord Entity [name
+                   moves
+                   attacks
+                   specials
+                   hits
+                   deads
+                   direction
+                   current-image
+                   width
+                   height
+                   x
+                   y
+                   x-velocity
+                   y-velocity])
+(defrecord TiledMap [layers width height entities])
+
+(def *session (-> {:get-mouse
+                   (fn []
+                     (let [mouse Mouse]
+                       mouse))
+                   :get-keys
+                   (fn []
+                     (let [keys Keys]
+                       keys))
+                   :get-entity
+                   (fn [?name]
+                     (let [entity Entity
+                           :when (= (:name entity) ?name)]
+                       entity))
+                   :get-tiled-map
+                   (fn []
+                     (let [tiled-map TiledMap]
+                       tiled-map))}
+                  ->session
+                  (clara/insert
+                    (->Mouse 0 0 nil)
+                    (->Keys #{}))
+                  clara/fire-rules
+                  atom))
+
+(defn update-pressed-keys! [f k]
+  (swap! *session
+    (fn [session]
+      (as-> session $
+            (clara/query $ :get-keys)
+            (clarax/merge session $ (update $ :pressed f k))
+            (clara/fire-rules $)))))
+
+(defn update-mouse-button! [button]
+  (swap! *session
+    (fn [session]
+      (as-> session $
+            (clara/query $ :get-mouse)
+            (clarax/merge session $ {:button button})
+            (clara/fire-rules $)))))
+
+(defn update-mouse-coords! [x y]
+  (swap! *session
+    (fn [session]
+      (as-> session $
+            (clara/query $ :get-mouse)
+            (clarax/merge session $ {:x x :y y})
+            (clara/fire-rules $)))))
 
 (def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
-
+(def camera (e/->camera true))
 (def vertical-tiles 7)
 
 (defn create-grid [image tile-size mask-size]
@@ -35,10 +96,14 @@
   (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
   ;; load the tiled map
   (tiles/load-tiled-map game tiled-map
-    (fn [tiled-map entities]
-      (swap! *state assoc :tiled-map tiled-map :tiled-map-entities entities)
-      ;; load images and put them in the state atom
-      (doseq [[k path] {:player "characters/male_light.png"}]
+    (fn [tiled-map]
+      (swap! *session
+        (fn [session]
+          (-> session
+              (clara/insert (map->TiledMap tiled-map))
+              clara/fire-rules)))
+      ;; load images and put them in the session
+      (doseq [[char-name path] {:player "characters/male_light.png"}]
         (utils/get-image path
           (fn [{:keys [data width height]}]
             (let [entity (e/->image-entity game data width height)
@@ -57,7 +122,8 @@
                   deads (zipmap move/directions
                           (map #(nth % 7) grid))
                   [x y] (tiles/isometric->screen 5 5)
-                  character {:moves moves
+                  character {:name char-name
+                             :moves moves
                              :attacks attacks
                              :specials specials
                              :hits hits
@@ -70,20 +136,23 @@
                              :y y
                              :x-velocity 0
                              :y-velocity 0}]
-              ;; add it to the state
-              (swap! *state update :characters assoc k character))))))))
+              ;; add it to the session
+              (swap! *session
+                (fn [session]
+                  (-> session
+                      (clara/insert (map->Entity character))
+                      clara/fire-rules))))))))))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
    :clear {:color [(/ 150 255) (/ 150 255) (/ 150 255) 1] :depth 1}})
 
 (defn tick [game]
-  (let [{:keys [pressed-keys
-                characters
-                tiled-map
-                tiled-map-entities
-                camera]
-         :as state} @*state
+  (let [session @*session
+        mouse (clara/query session :get-mouse)
+        pressed-keys (:pressed (clara/query session :get-keys))
+        player (clara/query session :get-entity :?name :player)
+        tiled-map (clara/query session :get-tiled-map)
         game-width (utils/get-width game)
         game-height (utils/get-height game)]
     (when (and (pos? game-width) (pos? game-height))
@@ -94,11 +163,11 @@
         (c/render game (update screen-entity :viewport
                                assoc :width game-width :height game-height))
         ;; get the current player image to display
-        (when-let [{:keys [x y width height current-image]} (:player characters)]
+        (when-let [{:keys [x y width height current-image]} player]
           (let [camera (t/translate camera (- x offset-x) (- y offset-y))
                 min-y (- y offset-y 1)
                 max-y (+ y offset-y)
-                entities (->> tiled-map-entities
+                entities (->> (:entities tiled-map)
                               (remove (fn [[y-pos]]
                                         (or (< y-pos min-y)
                                             (> y-pos max-y))))
@@ -121,12 +190,14 @@
                     (c/render game entity))
                   entities)
             ;; change the state to move the player
-            (swap! *state update-in [:characters :player]
-              (fn [player]
+            (swap! *session
+              (fn [session]
                 (->> player
-                     (move/move game state)
+                     (move/move game pressed-keys mouse)
                      (move/prevent-move tiled-map)
-                     (move/animate game)))))))))
+                     (move/animate game)
+                     (clarax/merge session player)
+                     clara/fire-rules))))))))
   ;; return the game map
   game)
 

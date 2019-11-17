@@ -22,11 +22,12 @@
 
 (defn get-player-velocity
   [game
-   {:keys [pressed-keys mouse-button mouse-x mouse-y]}
+   pressed-keys
+   mouse
    {:keys [x y x-velocity y-velocity]}]
-  (if mouse-button
-    (let [x (float (- mouse-x (/ (utils/get-width game) 2)))
-          y (float (- mouse-y (/ (utils/get-height game) 2)))
+  (if (:button mouse)
+    (let [x (float (- (:x mouse) (/ (utils/get-width game) 2)))
+          y (float (- (:y mouse) (/ (utils/get-height game) 2)))
           x-adjust (if (== y 0)
                      0
                      (* max-velocity (math abs (/ x y))))
@@ -63,8 +64,11 @@
            (nth directions)))
 
 (defn move
-  [{:keys [delta-time] :as game} state {:keys [x y] :as character}]
-  (let [[x-velocity y-velocity] (get-player-velocity game state character)
+  [{:keys [delta-time] :as game}
+   pressed-keys
+   mouse
+   {:keys [x y] :as character}]
+  (let [[x-velocity y-velocity] (get-player-velocity game pressed-keys mouse character)
         x-change (* x-velocity delta-time)
         y-change (* y-velocity delta-time)]
     (if (or (not= 0 x-change) (not= 0 y-change))

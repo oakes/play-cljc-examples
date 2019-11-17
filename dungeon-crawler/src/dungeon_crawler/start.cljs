@@ -30,22 +30,16 @@
 (defn listen-for-mouse [canvas]
   (events/listen js/window "mousemove"
     (fn [event]
-      (swap! c/*state
-        (fn [state]
-          (let [bounds (.getBoundingClientRect canvas)
-                x (- (.-clientX event) (.-left bounds))
-                y (- (.-clientY event) (.-top bounds))]
-            (assoc state :mouse-x x :mouse-y y))))))
+      (let [bounds (.getBoundingClientRect canvas)
+            x (- (.-clientX event) (.-left bounds))
+            y (- (.-clientY event) (.-top bounds))]
+        (c/update-mouse-coords! x y))))
   (events/listen js/window "mousedown"
     (fn [event]
-      (swap! c/*state
-        (fn [state]
-          (assoc state :mouse-button (mousecode->keyword (.-button event)))))))
+      (c/update-mouse-button! (mousecode->keyword (.-button event)))))
   (events/listen js/window "mouseup"
     (fn [event]
-      (swap! c/*state
-        (fn [state]
-          (assoc state :mouse-button nil))))))
+      (c/update-mouse-button! nil))))
 
 (defn keycode->keyword [keycode]
   (condp = keycode
@@ -59,11 +53,11 @@
   (events/listen js/window "keydown"
     (fn [event]
       (when-let [k (keycode->keyword (.-keyCode event))]
-        (swap! c/*state update :pressed-keys conj k))))
+        (c/update-pressed-keys! conj k))))
   (events/listen js/window "keyup"
     (fn [event]
       (when-let [k (keycode->keyword (.-keyCode event))]
-        (swap! c/*state update :pressed-keys disj k)))))
+        (c/update-pressed-keys! disj k)))))
 
 ;; start the game
 

@@ -147,9 +147,9 @@
                                   [y (reduce-kv i/assoc entity tiles)]))))]
           (callback
             {:layers partitioned-layers
-             :map-width map-width
-             :map-height map-height}
-            entities))))))
+             :width map-width
+             :height map-height
+             :entities entities}))))))
 
 (defn touching-tile? [{:keys [layers map-width map-height]} layer-name x y width height]
   (let [[x y] (screen->isometric
