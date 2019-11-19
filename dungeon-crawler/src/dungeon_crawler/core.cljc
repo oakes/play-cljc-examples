@@ -33,7 +33,7 @@
                    y-change
                    x-velocity
                    y-velocity
-                   total-time])
+                   game])
 (defrecord TiledMap [layers width height entities])
 
 (def *session (-> {:get-game
@@ -62,12 +62,12 @@
                          keys Keys
                          mouse Mouse
                          entity Entity
-                         :when (and (not= (:total-time entity) (:total-time game))
+                         :when (and (not= (:game entity) game)
                                     (= (:name entity) :player))]
                      (clarax/merge! entity (-> entity
                                                (move/move game (:pressed keys) mouse)
                                                (move/animate game)
-                                               (assoc :total-time (:total-time game)))))
+                                               (assoc :game game))))
                    :dont-overlap-tile
                    (let [tiled-map TiledMap
                          entity Entity
@@ -175,8 +175,7 @@
                              :x-change 0
                              :y-change 0
                              :x-velocity 0
-                             :y-velocity 0
-                             :total-time 0}]
+                             :y-velocity 0}]
               ;; add it to the session
               (swap! *session
                 (fn [session]
