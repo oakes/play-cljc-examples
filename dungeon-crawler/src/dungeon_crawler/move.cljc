@@ -64,10 +64,10 @@
            (nth directions)))
 
 (defn move
-  [{:keys [delta-time] :as game}
+  [{:keys [x y] :as character}
+   {:keys [delta-time] :as game}
    pressed-keys
-   mouse
-   {:keys [x y] :as character}]
+   mouse]
   (let [[x-velocity y-velocity] (get-player-velocity game pressed-keys mouse character)
         x-change (* x-velocity delta-time)
         y-change (* y-velocity delta-time)
@@ -83,9 +83,9 @@
       character)))
 
 (defn animate
-  [{:keys [total-time]}
-   {:keys [x-velocity y-velocity moves current-image]
-    :as character}]
+  [{:keys [x-velocity y-velocity moves current-image]
+    :as character}
+   {:keys [total-time]}]
   (let [direction (get-direction x-velocity y-velocity)]
     (-> character
         (assoc :current-image

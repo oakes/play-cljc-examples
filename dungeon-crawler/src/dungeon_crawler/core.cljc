@@ -14,6 +14,7 @@
             #?(:clj  [dungeon-crawler.tiles :as tiles :refer [read-tiled-map]]
                :cljs [dungeon-crawler.tiles :as tiles :refer-macros [read-tiled-map]])))
 
+(defrecord Game [total-time delta-time context])
 (defrecord Mouse [x y button])
 (defrecord Keys [pressed])
 (defrecord Entity [name
@@ -31,10 +32,15 @@
                    x-change
                    y-change
                    x-velocity
-                   y-velocity])
+                   y-velocity
+                   total-time])
 (defrecord TiledMap [layers width height entities])
 
-(def *session (-> {:get-mouse
+(def *session (-> {:get-game
+                   (fn []
+                     (let [game Game]
+                       game))
+                   :get-mouse
                    (fn []
                      (let [mouse Mouse]
                        mouse))
@@ -51,12 +57,22 @@
                    (fn []
                      (let [tiled-map TiledMap]
                        tiled-map))
+                   :move-player
+                   (let [game Game
+                         keys Keys
+                         mouse Mouse
+                         entity Entity
+                         :when (and (not= (:total-time entity) (:total-time game))
+                                    (= (:name entity) :player))]
+                     (clarax/merge! entity (-> entity
+                                               (move/move game (:pressed keys) mouse)
+                                               (move/animate game)
+                                               (assoc :total-time (:total-time game)))))
                    :dont-overlap-tile
                    (let [tiled-map TiledMap
                          entity Entity
-                         :when (and (= (:name entity) :player)
-                                    (or (not (== 0 (:x-change entity)))
-                                        (not (== 0 (:y-change entity)))))]
+                         :when (or (not (== 0 (:x-change entity)))
+                                   (not (== 0 (:y-change entity))))]
                      (let [{:keys [x y
                                    width height
                                    x-change y-change]} entity
@@ -72,6 +88,7 @@
                                                        (assoc :y-velocity 0 :y old-y))))))}
                   ->session
                   (clara/insert
+                    (->Game 0 0 0)
                     (->Mouse 0 0 nil)
                     (->Keys #{}))
                   clara/fire-rules
@@ -158,7 +175,8 @@
                              :x-change 0
                              :y-change 0
                              :x-velocity 0
-                             :y-velocity 0}]
+                             :y-velocity 0
+                             :total-time 0}]
               ;; add it to the session
               (swap! *session
                 (fn [session]
@@ -172,8 +190,6 @@
 
 (defn tick [game]
   (let [session @*session
-        mouse (clara/query session :get-mouse)
-        pressed-keys (:pressed (clara/query session :get-keys))
         player (clara/query session :get-entity :?name :player)
         tiled-map (clara/query session :get-tiled-map)
         game-width (utils/get-width game)
@@ -215,11 +231,9 @@
             ;; change the state to move the player
             (swap! *session
               (fn [session]
-                (->> player
-                     (move/move game pressed-keys mouse)
-                     (move/animate game)
-                     (clarax/merge session player)
-                     clara/fire-rules))))))))
+                (-> session
+                    (clarax/merge (clara/query session :get-game) game)
+                    clara/fire-rules))))))))
   ;; return the game map
   game)
 
