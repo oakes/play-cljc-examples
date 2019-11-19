@@ -28,6 +28,8 @@
                    height
                    x
                    y
+                   x-change
+                   y-change
                    x-velocity
                    y-velocity])
 (defrecord TiledMap [layers width height entities])
@@ -48,7 +50,26 @@
                    :get-tiled-map
                    (fn []
                      (let [tiled-map TiledMap]
-                       tiled-map))}
+                       tiled-map))
+                   :dont-overlap-tile
+                   (let [tiled-map TiledMap
+                         entity Entity
+                         :when (and (= (:name entity) :player)
+                                    (or (not (== 0 (:x-change entity)))
+                                        (not (== 0 (:y-change entity)))))]
+                     (let [{:keys [x y
+                                   width height
+                                   x-change y-change]} entity
+                           old-x (- x x-change)
+                           old-y (- y y-change)
+                           touching-x? (tiles/touching-tile? tiled-map "walls" x old-y width height)
+                           touching-y? (tiles/touching-tile? tiled-map "walls" old-x y width height)]
+                       (when (or touching-x? touching-y?)
+                         (clarax/merge! entity (cond-> {:x-change 0 :y-change 0}
+                                                       touching-x?
+                                                       (assoc :x-velocity 0 :x old-x)
+                                                       touching-y?
+                                                       (assoc :y-velocity 0 :y old-y))))))}
                   ->session
                   (clara/insert
                     (->Mouse 0 0 nil)
@@ -134,6 +155,8 @@
                              :height (/ mask-size tile-size)
                              :x x
                              :y y
+                             :x-change 0
+                             :y-change 0
                              :x-velocity 0
                              :y-velocity 0}]
               ;; add it to the session
@@ -194,7 +217,6 @@
               (fn [session]
                 (->> player
                      (move/move game pressed-keys mouse)
-                     (move/prevent-move tiled-map)
                      (move/animate game)
                      (clarax/merge session player)
                      clara/fire-rules))))))))

@@ -70,29 +70,17 @@
    {:keys [x y] :as character}]
   (let [[x-velocity y-velocity] (get-player-velocity game pressed-keys mouse character)
         x-change (* x-velocity delta-time)
-        y-change (* y-velocity delta-time)]
+        y-change (* y-velocity delta-time)
+        character (assoc character
+                    :x-change x-change
+                    :y-change y-change)]
     (if (or (not= 0 x-change) (not= 0 y-change))
       (assoc character
         :x-velocity (decelerate x-velocity)
         :y-velocity (decelerate y-velocity)
-        :x-change x-change
-        :y-change y-change
         :x (+ x x-change)
         :y (+ y y-change))
       character)))
-
-(defn prevent-move
-  [tiled-map {:keys [x y
-                     width height
-                     x-change y-change]
-              :as character}]
-  (let [old-x (- x x-change)
-        old-y (- y y-change)]
-    (cond-> character
-            (tiles/touching-tile? tiled-map "walls" x old-y width height)
-            (assoc :x-velocity 0 :x-change 0 :x old-x)
-            (tiles/touching-tile? tiled-map "walls" old-x y width height)
-            (assoc :y-velocity 0 :y-change 0 :y old-y))))
 
 (defn animate
   [{:keys [total-time]}
