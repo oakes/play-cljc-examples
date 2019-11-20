@@ -63,6 +63,22 @@
            (.indexOf velocities)
            (nth directions)))
 
+(defn dont-overlap-tile
+  [{:keys [x y
+           width height
+           x-change y-change]}
+   tiled-map]
+  (let [old-x (- x x-change)
+        old-y (- y y-change)
+        touching-x? (tiles/touching-tile? tiled-map "walls" x old-y width height)
+        touching-y? (tiles/touching-tile? tiled-map "walls" old-x y width height)]
+    (when (or touching-x? touching-y?)
+      (cond-> {:x-change 0 :y-change 0}
+              touching-x?
+              (assoc :x-velocity 0 :x old-x)
+              touching-y?
+              (assoc :y-velocity 0 :y old-y)))))
+
 (defn move
   [{:keys [x y] :as character}
    {:keys [delta-time] :as game}
