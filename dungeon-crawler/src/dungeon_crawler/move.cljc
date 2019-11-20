@@ -86,7 +86,7 @@
   [{:keys [x-velocity y-velocity moves current-image]
     :as character}
    {:keys [total-time]}]
-  (let [direction (get-direction x-velocity y-velocity)]
+  (when-let [direction (get-direction x-velocity y-velocity)]
     (-> character
         (assoc :current-image
           (if (or (not= x-velocity 0)

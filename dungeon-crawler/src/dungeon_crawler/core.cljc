@@ -66,13 +66,18 @@
                                     (= (:name entity) :player))]
                      (clarax/merge! entity (-> entity
                                                (move/move game (:pressed keys) mouse)
-                                               (move/animate game)
-                                               (assoc :game game))))
+                                               (assoc :game game :direction nil))))
+                   :animate
+                   (let [game Game
+                         entity Entity
+                         :when (= (:direction entity) nil)]
+                     (some->> (move/animate entity game)
+                              (clarax/merge! entity)))
                    :dont-overlap-tile
                    (let [tiled-map TiledMap
                          entity Entity
-                         :when (or (not (== 0 (:x-change entity)))
-                                   (not (== 0 (:y-change entity))))]
+                         :when (or (not= 0 (:x-change entity))
+                                   (not= 0 (:y-change entity)))]
                      (let [{:keys [x y
                                    width height
                                    x-change y-change]} entity
