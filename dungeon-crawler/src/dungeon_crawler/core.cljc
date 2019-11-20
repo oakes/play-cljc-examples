@@ -82,7 +82,6 @@
                               (clarax/merge! entity)))}
                   ->session
                   (clara/insert
-                    (->Game 0 0 0)
                     (->Mouse 0 0 nil)
                     (->Keys #{}))
                   clara/fire-rules
@@ -112,7 +111,7 @@
             (clarax/merge session $ {:x x :y y})
             (clara/fire-rules $)))))
 
-(def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
+(def parsed-tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 (def camera (e/->camera true))
 (def vertical-tiles 7)
 
@@ -126,8 +125,14 @@
   ;; allow transparency in images
   (gl game enable (gl game BLEND))
   (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
+  ;; insert game record
+  (swap! *session
+    (fn [session]
+      (-> session
+          (clara/insert (map->Game game))
+          clara/fire-rules)))
   ;; load the tiled map
-  (tiles/load-tiled-map game tiled-map
+  (tiles/load-tiled-map game parsed-tiled-map
     (fn [tiled-map]
       (swap! *session
         (fn [session]
@@ -220,13 +225,15 @@
                               vec)]
             (run! (fn [[y-pos entity]]
                     (c/render game entity))
-                  entities)
-            ;; change the state to move the player
-            (swap! *session
-              (fn [session]
-                (-> session
-                    (clarax/merge (clara/query session :get-game) game)
-                    clara/fire-rules))))))))
+                  entities))))
+      ;; insert/update the game record
+      (if-let [game* (clara/query session :get-game)]
+        (swap! *session
+          (fn [session]
+            (-> session
+                (clarax/merge game* game)
+                clara/fire-rules)))
+        (init game))))
   ;; return the game map
   game)
 
