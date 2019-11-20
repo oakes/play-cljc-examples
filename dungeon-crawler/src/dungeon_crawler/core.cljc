@@ -48,10 +48,15 @@
                    (fn []
                      (let [keys Keys]
                        keys))
-                   :get-entity
-                   (fn [?name]
+                   :get-player
+                   (fn []
                      (let [entity Entity
-                           :when (= (:name entity) ?name)]
+                           :when (= (:name entity) :player)]
+                       entity))
+                   :get-enemies
+                   (fn []
+                     (let [entity [Entity]
+                           :when (not= (:name entity) :player)]
                        entity))
                    :get-tiled-map
                    (fn []
@@ -114,12 +119,44 @@
 (def parsed-tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 (def camera (e/->camera true))
 (def vertical-tiles 7)
+(def tile-size 256)
 
 (defn create-grid [image tile-size mask-size]
   (let [offset (-> tile-size (- mask-size) (/ 2))]
     (vec (for [y (range 0 (:height image) tile-size)]
            (vec (for [x (range 0 (:width image) tile-size)]
                   (t/crop image (+ x offset) (+ y offset) mask-size mask-size)))))))
+
+(defn ->entity [entity {:keys [name mask-size x y]}]
+  (let [grid (create-grid entity tile-size mask-size)
+        moves (zipmap move/directions
+                (map #(vec (take 4 %)) grid))
+        attacks (zipmap move/directions
+                  (map #(nth % 4) grid))
+        specials (zipmap move/directions
+                   (map #(nth % 5) grid))
+        hits (zipmap move/directions
+               (map #(nth % 6) grid))
+        deads (zipmap move/directions
+                (map #(nth % 7) grid))
+        [x y] (tiles/isometric->screen x y)]
+    (map->Entity
+      {:name name
+       :moves moves
+       :attacks attacks
+       :specials specials
+       :hits hits
+       :deads deads
+       :direction :s
+       :current-image (get-in moves [:s 0])
+       :width (/ mask-size tile-size)
+       :height (/ mask-size tile-size)
+       :x x
+       :y y
+       :x-change 0
+       :y-change 0
+       :x-velocity 0
+       :y-velocity 0})))
 
 (defn init [game]
   ;; allow transparency in images
@@ -140,46 +177,26 @@
               (clara/insert (map->TiledMap tiled-map))
               clara/fire-rules)))
       ;; load images and put them in the session
-      (doseq [[char-name path] {:player "characters/male_light.png"}]
+      (doseq [{:keys [path] :as m}
+              [{:name :player
+                :path "characters/male_light.png"
+                :mask-size 128
+                :x 5
+                :y 5}
+               {:name :ogre
+                :path "characters/ogre.png"
+                :mask-size 256
+                :x 12
+                :y 3}]]
         (utils/get-image path
           (fn [{:keys [data width height]}]
             (let [entity (e/->image-entity game data width height)
-                  entity (c/compile game entity)
-                  tile-size 256
-                  mask-size 128
-                  grid (create-grid entity tile-size mask-size)
-                  moves (zipmap move/directions
-                          (map #(vec (take 4 %)) grid))
-                  attacks (zipmap move/directions
-                            (map #(nth % 4) grid))
-                  specials (zipmap move/directions
-                             (map #(nth % 5) grid))
-                  hits (zipmap move/directions
-                         (map #(nth % 6) grid))
-                  deads (zipmap move/directions
-                          (map #(nth % 7) grid))
-                  [x y] (tiles/isometric->screen 5 5)
-                  character {:name char-name
-                             :moves moves
-                             :attacks attacks
-                             :specials specials
-                             :hits hits
-                             :deads deads
-                             :direction :s
-                             :current-image (get-in moves [:s 0])
-                             :width (/ mask-size tile-size)
-                             :height (/ mask-size tile-size)
-                             :x x
-                             :y y
-                             :x-change 0
-                             :y-change 0
-                             :x-velocity 0
-                             :y-velocity 0}]
+                  entity (c/compile game entity)]
               ;; add it to the session
               (swap! *session
                 (fn [session]
                   (-> session
-                      (clara/insert (map->Entity character))
+                      (clara/insert (->entity entity m))
                       clara/fire-rules))))))))))
 
 (def screen-entity
@@ -188,7 +205,8 @@
 
 (defn tick [game]
   (let [session @*session
-        player (clara/query session :get-entity :?name :player)
+        player (clara/query session :get-player)
+        enemies (clara/query session :get-enemies)
         tiled-map (clara/query session :get-tiled-map)
         game-width (utils/get-width game)
         game-height (utils/get-height game)]
@@ -221,6 +239,14 @@
                                            (t/camera camera)
                                            (t/translate x y)
                                            (t/scale width height))])
+                              (concat (for [{:keys [x y width height current-image]} enemies
+                                            :when (< min-y y max-y)]
+                                        [y (-> current-image
+                                               (t/project game-width game-height)
+                                               (t/scale scaled-tile-size scaled-tile-size)
+                                               (t/camera camera)
+                                               (t/translate x y)
+                                               (t/scale width height))]))
                               (sort-by first <)
                               vec)]
             (run! (fn [[y-pos entity]]
