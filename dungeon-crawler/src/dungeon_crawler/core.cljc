@@ -17,7 +17,7 @@
 (defrecord Game [total-time delta-time context])
 (defrecord Mouse [x y button])
 (defrecord Keys [pressed])
-(defrecord Entity [name
+(defrecord Entity [type
                    moves
                    attacks
                    specials
@@ -51,26 +51,36 @@
                    :get-player
                    (fn []
                      (let [entity Entity
-                           :when (= (:name entity) :player)]
+                           :when (= (:type entity) :player)]
                        entity))
                    :get-enemies
                    (fn []
                      (let [entity [Entity]
-                           :when (not= (:name entity) :player)]
+                           :when (not= (:type entity) :player)]
                        entity))
                    :get-tiled-map
                    (fn []
                      (let [tiled-map TiledMap]
                        tiled-map))
+                   :move-enemy
+                   (let [game Game
+                         player Entity
+                         :when (= (:type player) :player)
+                         entity Entity
+                         :when (and (not= (:game entity) game)
+                                    (not= (:type entity) :player))]
+                     (clarax/merge! entity (-> (move/get-enemy-velocity entity player)
+                                               (move/move entity game)
+                                               (assoc :game game :direction nil))))
                    :move-player
                    (let [game Game
                          keys Keys
                          mouse Mouse
                          entity Entity
                          :when (and (not= (:game entity) game)
-                                    (= (:name entity) :player))]
-                     (clarax/merge! entity (-> entity
-                                               (move/move game (:pressed keys) mouse)
+                                    (= (:type entity) :player))]
+                     (clarax/merge! entity (-> (move/get-player-velocity game (:pressed keys) mouse entity)
+                                               (move/move entity game)
                                                (assoc :game game :direction nil))))
                    :animate
                    (let [game Game
@@ -127,7 +137,7 @@
            (vec (for [x (range 0 (:width image) tile-size)]
                   (t/crop image (+ x offset) (+ y offset) mask-size mask-size)))))))
 
-(defn ->entity [entity {:keys [name mask-size x y]}]
+(defn ->entity [entity {:keys [type mask-size x y]}]
   (let [grid (create-grid entity tile-size mask-size)
         moves (zipmap move/directions
                 (map #(vec (take 4 %)) grid))
@@ -141,7 +151,7 @@
                 (map #(nth % 7) grid))
         [x y] (tiles/isometric->screen x y)]
     (map->Entity
-      {:name name
+      {:type type
        :moves moves
        :attacks attacks
        :specials specials
@@ -178,12 +188,12 @@
               clara/fire-rules)))
       ;; load images and put them in the session
       (doseq [{:keys [path] :as m}
-              [{:name :player
+              [{:type :player
                 :path "characters/male_light.png"
                 :mask-size 128
                 :x 5
                 :y 5}
-               {:name :ogre
+               {:type :ogre
                 :path "characters/ogre.png"
                 :mask-size 256
                 :x 12

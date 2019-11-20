@@ -6,6 +6,7 @@
 
 (def ^:const damping 0.1)
 (def ^:const max-velocity 4)
+(def ^:const max-enemy-velocity (/ max-velocity 2))
 (def ^:const deceleration 0.8)
 (def ^:const animation-secs 0.2)
 (def ^:const directions [:w :nw :n :ne
@@ -53,6 +54,34 @@
        :else
        y-velocity)]))
 
+(defn calc-distance [{x1 :x y1 :y} {x2 :x y2 :y}]
+  (math abs (math sqrt (+ (math pow (- x1 x2) 2)
+                          (math pow (- y1 y2) 2)))))
+
+(defn get-enemy-velocity [{:keys [x-velocity y-velocity] :as enemy} player]
+  (let [distance (calc-distance enemy player)]
+    (cond
+      (< 0.5 distance 2)
+      [(cond-> max-enemy-velocity
+               (< (:x player) (:x enemy))
+               (* -1))
+       (cond-> max-enemy-velocity
+               (< (:y player) (:y enemy))
+               (* -1))]
+      (<= distance 0.5)
+      [0 0]
+      :else
+      [(if (= 0 x-velocity)
+         (-> (rand-int 3)
+             (- 1)
+             (* max-enemy-velocity))
+         x-velocity)
+       (if (= 0 y-velocity)
+         (-> (rand-int 3)
+             (- 1)
+             (* max-enemy-velocity))
+         y-velocity)])))
+
 (defn get-direction
   [x-velocity y-velocity]
   (some->> velocities
@@ -80,12 +109,10 @@
               (assoc :y-velocity 0 :y old-y)))))
 
 (defn move
-  [{:keys [x y] :as character}
-   {:keys [delta-time] :as game}
-   pressed-keys
-   mouse]
-  (let [[x-velocity y-velocity] (get-player-velocity game pressed-keys mouse character)
-        x-change (* x-velocity delta-time)
+  [[x-velocity y-velocity]
+   {:keys [type x y] :as character}
+   {:keys [delta-time] :as game}]
+  (let [x-change (* x-velocity delta-time)
         y-change (* y-velocity delta-time)
         character (assoc character
                     :x-change x-change
