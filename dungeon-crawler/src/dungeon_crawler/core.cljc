@@ -17,7 +17,7 @@
 (defrecord Game [total-time delta-time context])
 (defrecord Mouse [x y button])
 (defrecord Keys [pressed])
-(defrecord Entity [type
+(defrecord Entity [char-type
                    moves
                    attacks
                    specials
@@ -51,12 +51,12 @@
                    :get-player
                    (fn []
                      (let [entity Entity
-                           :when (= (:type entity) :player)]
+                           :when (= (:char-type entity) :player)]
                        entity))
                    :get-enemies
                    (fn []
                      (let [entity [Entity]
-                           :when (not= (:type entity) :player)]
+                           :when (not= (:char-type entity) :player)]
                        entity))
                    :get-tiled-map
                    (fn []
@@ -65,10 +65,10 @@
                    :move-enemy
                    (let [game Game
                          player Entity
-                         :when (= (:type player) :player)
+                         :when (= (:char-type player) :player)
                          entity Entity
                          :when (and (not= (:game entity) game)
-                                    (not= (:type entity) :player))]
+                                    (not= (:char-type entity) :player))]
                      (clarax/merge! entity (-> (move/get-enemy-velocity entity player)
                                                (move/move entity game)
                                                (assoc :game game :direction nil))))
@@ -78,7 +78,7 @@
                          mouse Mouse
                          entity Entity
                          :when (and (not= (:game entity) game)
-                                    (= (:type entity) :player))]
+                                    (= (:char-type entity) :player))]
                      (clarax/merge! entity (-> (move/get-player-velocity game (:pressed keys) mouse entity)
                                                (move/move entity game)
                                                (assoc :game game :direction nil))))
@@ -137,7 +137,7 @@
            (vec (for [x (range 0 (:width image) tile-size)]
                   (t/crop image (+ x offset) (+ y offset) mask-size mask-size)))))))
 
-(defn ->entity [entity {:keys [type mask-size x y]}]
+(defn ->entity [entity char-type mask-size x y]
   (let [grid (create-grid entity tile-size mask-size)
         moves (zipmap move/directions
                 (map #(vec (take 4 %)) grid))
@@ -151,7 +151,7 @@
                 (map #(nth % 7) grid))
         [x y] (tiles/isometric->screen x y)]
     (map->Entity
-      {:type type
+      {:char-type char-type
        :moves moves
        :attacks attacks
        :specials specials
@@ -167,6 +167,46 @@
        :y-change 0
        :x-velocity 0
        :y-velocity 0})))
+
+(def player-spawn-point {:x 2.5 :y 2.5})
+(def spawn-points (for [row (range tiles/rows)
+                        col (range tiles/cols)
+                        :let [point {:x (-> row (* 10) (+ 2.5))
+                                     :y (-> col (* 10) (+ 2.5))}]
+                        :when (not= point player-spawn-point)]
+                    point))
+
+;; the entities are cached here so we don't constantly
+;; make new ones when reloading this namespace
+(defonce *entity-cache (atom {}))
+
+(defn load-entities [game]
+  (doseq [{:keys [path instances char-type mask-size]}
+          [{:char-type :player
+            :path "characters/male_light.png"
+            :mask-size 128
+            :instances [player-spawn-point]}
+           {:char-type :ogre
+            :path "characters/ogre.png"
+            :mask-size 256
+            :instances (->> spawn-points shuffle (take 5))}
+           {:char-type :elemental
+            :path "characters/elemental.png"
+            :mask-size 256
+            :instances (->> spawn-points shuffle (take 5))}]]
+    (utils/get-image path
+      (fn [{:keys [data width height]}]
+        (let [entity (or (char-type @*entity-cache)
+                         (->> (e/->image-entity game data width height)
+                              (c/compile game)
+                              (swap! *entity-cache assoc char-type)
+                              char-type))]
+          (doseq [{:keys [x y]} instances]
+            (swap! *session
+              (fn [session]
+                (-> session
+                    (clara/insert (->entity entity char-type mask-size x y))
+                    clara/fire-rules)))))))))
 
 (defn init [game]
   ;; allow transparency in images
@@ -186,28 +226,7 @@
           (-> session
               (clara/insert (map->TiledMap tiled-map))
               clara/fire-rules)))
-      ;; load images and put them in the session
-      (doseq [{:keys [path] :as m}
-              [{:type :player
-                :path "characters/male_light.png"
-                :mask-size 128
-                :x 5
-                :y 5}
-               {:type :ogre
-                :path "characters/ogre.png"
-                :mask-size 256
-                :x 12
-                :y 3}]]
-        (utils/get-image path
-          (fn [{:keys [data width height]}]
-            (let [entity (e/->image-entity game data width height)
-                  entity (c/compile game entity)]
-              ;; add it to the session
-              (swap! *session
-                (fn [session]
-                  (-> session
-                      (clara/insert (->entity entity m))
-                      clara/fire-rules))))))))))
+      (load-entities game))))
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
