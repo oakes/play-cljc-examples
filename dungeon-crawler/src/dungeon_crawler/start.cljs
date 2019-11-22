@@ -3,15 +3,6 @@
             [play-cljc.gl.core :as pc]
             [goog.events :as events]))
 
-(defn resize [context]
-  (let [display-width context.canvas.clientWidth
-        display-height context.canvas.clientHeight]
-    (c/update-window-size! display-width display-height)
-    (when (or (not= context.canvas.width display-width)
-              (not= context.canvas.height display-height))
-      (set! context.canvas.width display-width)
-      (set! context.canvas.height display-height))))
-
 (defn game-loop [game]
   (let [game (c/tick game)]
     (js/requestAnimationFrame
@@ -59,6 +50,13 @@
     (fn [event]
       (when-let [k (keycode->keyword (.-keyCode event))]
         (c/update-pressed-keys! disj k)))))
+
+(defn resize [context]
+  (let [display-width context.canvas.clientWidth
+        display-height context.canvas.clientHeight]
+    (set! context.canvas.width display-width)
+    (set! context.canvas.height display-height)
+    (c/update-window-size! display-width display-height)))
 
 (defn listen-for-resize [context]
   (events/listen js/window "resize"
