@@ -46,6 +46,7 @@
     GLFW/GLFW_KEY_RIGHT :right
     GLFW/GLFW_KEY_UP :up
     GLFW/GLFW_KEY_DOWN :down
+    GLFW/GLFW_KEY_SPACE :space
     nil))
 
 (defn on-key! [window keycode scancode action mods]
@@ -57,7 +58,8 @@
 
 (defn on-char! [window codepoint])
 
-(defn on-resize! [window width height])
+(defn on-resize! [window width height]
+  (c/update-window-size! width height))
 
 (defprotocol Events
   (on-mouse-move [this xpos ypos])

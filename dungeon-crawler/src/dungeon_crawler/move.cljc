@@ -1,6 +1,5 @@
 (ns dungeon-crawler.move
-  (:require [dungeon-crawler.utils :as utils]
-            [dungeon-crawler.tiles :as tiles]
+  (:require [dungeon-crawler.tiles :as tiles]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
@@ -24,13 +23,13 @@
       velocity)))
 
 (defn get-player-velocity
-  [game
+  [{:keys [width height]}
    pressed-keys
    mouse
    {:keys [x y x-velocity y-velocity]}]
-  (if (:button mouse)
-    (let [x (float (- (:x mouse) (/ (utils/get-width game) 2)))
-          y (float (- (:y mouse) (/ (utils/get-height game) 2)))
+  (if (= :left (:button mouse))
+    (let [x (float (- (:x mouse) (/ width 2)))
+          y (float (- (:y mouse) (/ height 2)))
           x-adjust (if (== y 0)
                      0
                      (* max-velocity (math abs (/ x y))))

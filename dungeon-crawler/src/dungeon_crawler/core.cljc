@@ -14,10 +14,20 @@
             #?(:clj  [dungeon-crawler.tiles :as tiles :refer [read-tiled-map]]
                :cljs [dungeon-crawler.tiles :as tiles :refer-macros [read-tiled-map]])))
 
+(def parsed-tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
+(def orig-camera (e/->camera true))
+(def vertical-tiles 7)
+(def tile-size 256)
+(def max-attack-distance 1)
+(def min-attack-interval 0.25)
+
 (defrecord Game [total-time delta-time context])
+(defrecord Window [width height])
+(defrecord Camera [camera window player min-y max-y])
 (defrecord Mouse [x y button])
 (defrecord Keys [pressed])
-(defrecord Entity [char-type
+(defrecord Entity [id
+                   char-type
                    moves
                    attacks
                    specials
@@ -33,13 +43,23 @@
                    y-change
                    x-velocity
                    y-velocity
-                   game])
+                   game
+                   last-attack])
 (defrecord TiledMap [layers width height entities])
+(defrecord Attack [source-id target-id])
 
 (def *session (-> {:get-game
                    (fn []
                      (let [game Game]
                        game))
+                   :get-window
+                   (fn []
+                     (let [window Window]
+                       window))
+                   :get-camera
+                   (fn []
+                     (let [camera Camera]
+                       camera))
                    :get-mouse
                    (fn []
                      (let [mouse Mouse]
@@ -74,14 +94,36 @@
                                                (assoc :game game :direction nil))))
                    :move-player
                    (let [game Game
+                         window Window
                          keys Keys
                          mouse Mouse
-                         entity Entity
-                         :when (and (not= (:game entity) game)
-                                    (= (:char-type entity) :player))]
-                     (clarax/merge! entity (-> (move/get-player-velocity game (:pressed keys) mouse entity)
-                                               (move/move entity game)
-                                               (assoc :game game :direction nil))))
+                         player Entity
+                         :when (and (not= (:game player) game)
+                                    (= (:char-type player) :player))]
+                     (let [[xv yv :as v] (move/get-player-velocity window (:pressed keys) mouse player)]
+                       (when (or (not= 0 xv) (not= 0 yv))
+                         (clarax/merge! player (-> (move/move v player game)
+                                                   (assoc :game game :direction nil))))))
+                   :update-camera
+                   (let [window Window
+                         player Entity
+                         :when (= (:char-type player) :player)
+                         camera Camera
+                         :when (or (not= (:window camera) window)
+                                   (not= (:player camera) player))]
+                     (let [{game-width :width game-height :height} window
+                           scaled-tile-size (/ game-height vertical-tiles)
+                           x (:x player)
+                           y (:y player)
+                           offset-x (/ game-width 2 scaled-tile-size)
+                           offset-y (/ game-height 2 scaled-tile-size)
+                           min-y (- y offset-y 1)
+                           max-y (+ y offset-y)]
+                       (clarax/merge! camera {:window window
+                                              :camera (t/translate orig-camera (- x offset-x) (- y offset-y))
+                                              :player player
+                                              :min-y min-y
+                                              :max-y max-y})))
                    :animate
                    (let [game Game
                          entity Entity
@@ -94,7 +136,33 @@
                          :when (or (not= 0 (:x-change entity))
                                    (not= 0 (:y-change entity)))]
                      (some->> (move/dont-overlap-tile entity tiled-map)
-                              (clarax/merge! entity)))}
+                              (clarax/merge! entity)))
+                   :player-attack
+                   (let [game Game
+                         player Entity
+                         :when (and (= (:char-type player) :player)
+                                    (-> (:total-time game)
+                                        (- (:last-attack player))
+                                        (>= min-attack-interval)))
+                         keys Keys
+                         :when (contains? (:pressed keys) :space)
+                         target [Entity]
+                         :when (not= (:char-type target) :player)]
+                     (clarax/merge! player {:last-attack (:total-time game)})
+                     (when-let [[distance entity] (->> target
+                                                   (mapv #(vector (move/calc-distance % player) %))
+                                                   (sort-by first)
+                                                   first)]
+                        (when (<= distance max-attack-distance)
+                          (clara/insert-unconditional! (->Attack (:id player) (:id entity))))))
+                   :attack
+                   (let [attack Attack
+                         source Entity
+                         :when (= (:id source) (:source-id attack))
+                         target Entity
+                         :when (= (:id target) (:target-id attack))]
+                     (println (:char-type source) "attacked" (:char-type target))
+                     (clara/retract! attack))}
                   ->session
                   (clara/insert
                     (->Mouse 0 0 nil)
@@ -126,16 +194,21 @@
             (clarax/merge session $ {:x x :y y})
             (clara/fire-rules $)))))
 
-(def parsed-tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
-(def camera (e/->camera true))
-(def vertical-tiles 7)
-(def tile-size 256)
+(defn update-window-size! [width height]
+  (swap! *session
+    (fn [session]
+      (as-> session $
+            (clara/query $ :get-window)
+            (clarax/merge session $ {:width width :height height})
+            (clara/fire-rules $)))))
 
 (defn create-grid [image tile-size mask-size]
   (let [offset (-> tile-size (- mask-size) (/ 2))]
     (vec (for [y (range 0 (:height image) tile-size)]
            (vec (for [x (range 0 (:width image) tile-size)]
                   (t/crop image (+ x offset) (+ y offset) mask-size mask-size)))))))
+
+(def *latest-id (atom 0))
 
 (defn ->entity [entity char-type mask-size x y]
   (let [grid (create-grid entity tile-size mask-size)
@@ -151,7 +224,8 @@
                 (map #(nth % 7) grid))
         [x y] (tiles/isometric->screen x y)]
     (map->Entity
-      {:char-type char-type
+      {:id (swap! *latest-id inc)
+       :char-type char-type
        :moves moves
        :attacks attacks
        :specials specials
@@ -166,7 +240,8 @@
        :x-change 0
        :y-change 0
        :x-velocity 0
-       :y-velocity 0})))
+       :y-velocity 0
+       :last-attack 0})))
 
 (def player-spawn-point {:x 2.5 :y 2.5})
 (def spawn-points (for [row (range tiles/rows)
@@ -216,7 +291,10 @@
   (swap! *session
     (fn [session]
       (-> session
-          (clara/insert (map->Game game))
+          (clara/insert
+            (map->Game game)
+            (->Window (utils/get-width game) (utils/get-height game))
+            (->Camera orig-camera nil nil 0 0))
           clara/fire-rules)))
   ;; load the tiled map
   (tiles/load-tiled-map game parsed-tiled-map
@@ -237,21 +315,16 @@
         player (clara/query session :get-player)
         enemies (clara/query session :get-enemies)
         tiled-map (clara/query session :get-tiled-map)
-        game-width (utils/get-width game)
-        game-height (utils/get-height game)]
-    (when (and (pos? game-width) (pos? game-height))
-      (let [scaled-tile-size (/ game-height vertical-tiles)
-            offset-x (/ game-width 2 scaled-tile-size)
-            offset-y (/ game-height 2 scaled-tile-size)]
+        {game-width :width game-height :height :as window} (clara/query session :get-window)
+        {:keys [camera min-y max-y]} (clara/query session :get-camera)]
+    (when (and window (pos? game-width) (pos? game-height))
+      (let [scaled-tile-size (/ game-height vertical-tiles)]
         ;; render the background
         (c/render game (update screen-entity :viewport
                                assoc :width game-width :height game-height))
         ;; get the current player image to display
         (when-let [{:keys [x y width height current-image]} player]
-          (let [camera (t/translate camera (- x offset-x) (- y offset-y))
-                min-y (- y offset-y 1)
-                max-y (+ y offset-y)
-                entities (->> (:entities tiled-map)
+          (let [entities (->> (:entities tiled-map)
                               (remove (fn [[y-pos]]
                                         (or (< y-pos min-y)
                                             (> y-pos max-y))))
@@ -280,15 +353,15 @@
                               vec)]
             (run! (fn [[y-pos entity]]
                     (c/render game entity))
-                  entities))))
-      ;; insert/update the game record
-      (if-let [game* (clara/query session :get-game)]
-        (swap! *session
-          (fn [session]
-            (-> session
-                (clarax/merge game* game)
-                clara/fire-rules)))
-        (init game))))
+                  entities)))))
+    ;; insert/update the game record
+    (if-let [game' (clara/query session :get-game)]
+      (swap! *session
+        (fn [session]
+          (-> session
+              (clarax/merge game' game)
+              clara/fire-rules)))
+      (init game)))
   ;; return the game map
   game)
 
