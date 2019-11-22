@@ -1,6 +1,7 @@
 (ns dungeon-crawler.core
   (:require [dungeon-crawler.utils :as utils]
             [dungeon-crawler.move :as move]
+            [dungeon-crawler.entities :as entities #?@(:cljs [:refer Entity])]
             [clojure.edn :as edn]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
@@ -12,12 +13,12 @@
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])
             #?(:clj  [dungeon-crawler.tiles :as tiles :refer [read-tiled-map]]
-               :cljs [dungeon-crawler.tiles :as tiles :refer-macros [read-tiled-map]])))
+               :cljs [dungeon-crawler.tiles :as tiles :refer-macros [read-tiled-map]]))
+  #?(:clj (:import [dungeon_crawler.entities Entity])))
 
 (def parsed-tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 (def orig-camera (e/->camera true))
 (def vertical-tiles 7)
-(def tile-size 256)
 (def max-attack-distance 1)
 (def min-attack-interval 0.25)
 
@@ -26,27 +27,23 @@
 (defrecord Camera [camera window player min-y max-y])
 (defrecord Mouse [x y button])
 (defrecord Keys [pressed])
-(defrecord Entity [id
-                   char-type
-                   moves
-                   attacks
-                   specials
-                   hits
-                   deads
-                   direction
-                   current-image
-                   width
-                   height
-                   x
-                   y
-                   x-change
-                   y-change
-                   x-velocity
-                   y-velocity
-                   game
-                   last-attack])
 (defrecord TiledMap [layers width height entities])
 (defrecord Attack [source-id target-id])
+
+(defn update-camera [window player]
+  (let [{game-width :width game-height :height} window
+        scaled-tile-size (/ game-height vertical-tiles)
+        x (:x player)
+        y (:y player)
+        offset-x (/ game-width 2 scaled-tile-size)
+        offset-y (/ game-height 2 scaled-tile-size)
+        min-y (- y offset-y 1)
+        max-y (+ y offset-y)]
+    {:window window
+     :camera (t/translate orig-camera (- x offset-x) (- y offset-y))
+     :player player
+     :min-y min-y
+     :max-y max-y}))
 
 (def *session (-> {:get-game
                    (fn []
@@ -111,19 +108,7 @@
                          camera Camera
                          :when (or (not= (:window camera) window)
                                    (not= (:player camera) player))]
-                     (let [{game-width :width game-height :height} window
-                           scaled-tile-size (/ game-height vertical-tiles)
-                           x (:x player)
-                           y (:y player)
-                           offset-x (/ game-width 2 scaled-tile-size)
-                           offset-y (/ game-height 2 scaled-tile-size)
-                           min-y (- y offset-y 1)
-                           max-y (+ y offset-y)]
-                       (clarax/merge! camera {:window window
-                                              :camera (t/translate orig-camera (- x offset-x) (- y offset-y))
-                                              :player player
-                                              :min-y min-y
-                                              :max-y max-y})))
+                     (clarax/merge! camera (update-camera window player)))
                    :animate
                    (let [game Game
                          entity Entity
@@ -202,86 +187,18 @@
             (clarax/merge session $ {:width width :height height})
             (clara/fire-rules $)))))
 
-(defn create-grid [image tile-size mask-size]
-  (let [offset (-> tile-size (- mask-size) (/ 2))]
-    (vec (for [y (range 0 (:height image) tile-size)]
-           (vec (for [x (range 0 (:width image) tile-size)]
-                  (t/crop image (+ x offset) (+ y offset) mask-size mask-size)))))))
-
-(def *latest-id (atom 0))
-
-(defn ->entity [entity char-type mask-size x y]
-  (let [grid (create-grid entity tile-size mask-size)
-        moves (zipmap move/directions
-                (map #(vec (take 4 %)) grid))
-        attacks (zipmap move/directions
-                  (map #(nth % 4) grid))
-        specials (zipmap move/directions
-                   (map #(nth % 5) grid))
-        hits (zipmap move/directions
-               (map #(nth % 6) grid))
-        deads (zipmap move/directions
-                (map #(nth % 7) grid))
-        [x y] (tiles/isometric->screen x y)]
-    (map->Entity
-      {:id (swap! *latest-id inc)
-       :char-type char-type
-       :moves moves
-       :attacks attacks
-       :specials specials
-       :hits hits
-       :deads deads
-       :direction :s
-       :current-image (get-in moves [:s 0])
-       :width (/ mask-size tile-size)
-       :height (/ mask-size tile-size)
-       :x x
-       :y y
-       :x-change 0
-       :y-change 0
-       :x-velocity 0
-       :y-velocity 0
-       :last-attack 0})))
-
-(def player-spawn-point {:x 2.5 :y 2.5})
-(def spawn-points (for [row (range tiles/rows)
-                        col (range tiles/cols)
-                        :let [point {:x (-> row (* 10) (+ 2.5))
-                                     :y (-> col (* 10) (+ 2.5))}]
-                        :when (not= point player-spawn-point)]
-                    point))
-
-;; the entities are cached here so we don't constantly
-;; make new ones when reloading this namespace
-(defonce *entity-cache (atom {}))
-
 (defn load-entities [game]
-  (doseq [{:keys [path instances char-type mask-size]}
-          [{:char-type :player
-            :path "characters/male_light.png"
-            :mask-size 128
-            :instances [player-spawn-point]}
-           {:char-type :ogre
-            :path "characters/ogre.png"
-            :mask-size 256
-            :instances (->> spawn-points shuffle (take 5))}
-           {:char-type :elemental
-            :path "characters/elemental.png"
-            :mask-size 256
-            :instances (->> spawn-points shuffle (take 5))}]]
+  (doseq [{:keys [path instances] :as spawn-data} entities/spawn-data]
     (utils/get-image path
-      (fn [{:keys [data width height]}]
-        (let [entity (or (char-type @*entity-cache)
-                         (->> (e/->image-entity game data width height)
-                              (c/compile game)
-                              (swap! *entity-cache assoc char-type)
-                              char-type))]
-          (doseq [{:keys [x y]} instances]
-            (swap! *session
-              (fn [session]
-                (-> session
-                    (clara/insert (->entity entity char-type mask-size x y))
-                    clara/fire-rules)))))))))
+      (fn [image]
+        (swap! *session
+          (fn [session]
+            (->> instances
+                 (reduce
+                   (fn [session instance]
+                     (clara/insert session (entities/->entity game spawn-data image instance)))
+                   session)
+                 clara/fire-rules)))))))
 
 (defn init [game]
   ;; allow transparency in images
