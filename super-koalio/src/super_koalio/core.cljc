@@ -23,7 +23,6 @@
                        :player-width 1
                        :player-height (/ koala-height koala-width)
                        :can-jump? false
-                       :started? false
                        :direction :right
                        :player-images {}
                        :player-walk-keys [:walk1 :walk2 :walk3]

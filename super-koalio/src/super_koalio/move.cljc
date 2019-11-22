@@ -6,10 +6,12 @@
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
 (def ^:const damping 0.1)
-(def ^:const max-velocity 14)
-(def ^:const max-jump-velocity (* max-velocity 6))
+(def ^:const max-velocity 16)
+(def ^:const max-jump-velocity (* max-velocity 10))
+(def ^:const max-movement-per-frame 1)
+(def ^:const min-movement-per-frame -1)
 (def ^:const deceleration 0.8)
-(def ^:const gravity 2.5)
+(def ^:const gravity 3)
 (def ^:const animation-secs 0.2)
 
 (defn decelerate
@@ -46,14 +48,15 @@
     direction))
 
 (defn move
-  [{:keys [delta-time] :as game} {:keys [player-x player-y can-jump? started?] :as state}]
+  [{:keys [delta-time] :as game} {:keys [player-x player-y can-jump?] :as state}]
   (let [x-velocity (get-x-velocity state)
-        y-velocity (+ (get-y-velocity state) (if started?
-                                               gravity
-                                               ;; initially make the gravity lower so koalio floats down
-                                               1.5))
-        x-change (* x-velocity delta-time)
-        y-change (* y-velocity delta-time)]
+        y-velocity (+ (get-y-velocity state) gravity)
+        x-change (-> (* x-velocity delta-time)
+                     (max min-movement-per-frame)
+                     (min max-movement-per-frame))
+        y-change (-> (* y-velocity delta-time)
+                     (max min-movement-per-frame)
+                     (min max-movement-per-frame))]
     (if (or (not= 0 x-change) (not= 0 y-change))
       (assoc state
              :x-velocity (decelerate x-velocity)
@@ -81,7 +84,7 @@
             (assoc :x-velocity 0 :x-change 0 :player-x old-x)
             vert-tile
             (assoc :y-velocity 0 :y-change 0 :player-y old-y
-                   :can-jump? (not up?) :started? true)
+                   :can-jump? (not up?))
             ;; if we are going up, destroy whatever tile we hit
             (and vert-tile (neg? y-velocity))
             (as-> state
