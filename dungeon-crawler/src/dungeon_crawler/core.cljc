@@ -6,6 +6,7 @@
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
+            [play-cljc.math :as m]
             [clara.rules :as clara]
             [clarax.rules :as clarax]
             #?(:clj  [clarax.macros-java :refer [->session]]
@@ -25,7 +26,7 @@
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
 (defrecord Camera [camera window player min-y max-y])
-(defrecord Mouse [x y button])
+(defrecord Mouse [x y world-coords button])
 (defrecord Keys [pressed])
 (defrecord TiledMap [layers width height entities])
 (defrecord Attack [source-id target-id])
@@ -124,7 +125,7 @@
                                    (not= 0 (:y-change entity)))]
                      (some->> (move/dont-overlap-tile entity tiled-map)
                               (clarax/merge! entity)))
-                   :player-attack
+                   :player-attack-with-key
                    (let [game Game
                          player Entity
                          :when (and (= (:char-type player) :player)
@@ -145,6 +146,49 @@
                               :id
                               (->Attack (:id player))
                               clara/insert-unconditional!))
+                   :player-attack-with-mouse
+                   (let [game Game
+                         player Entity
+                         :when (and (= (:char-type player) :player)
+                                    (-> (:total-time game)
+                                        (- (:last-attack player))
+                                        (>= min-attack-interval)))
+                         mouse Mouse
+                         :when (= (:button mouse) :right)
+                         target [Entity]
+                         :when (not= (:char-type target) :player)]
+                     (clarax/merge! player {:last-attack (:total-time game)})
+                     (some->> target
+                              (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
+                              (sort-by first)
+                              (filter #(<= (first %) max-attack-distance))
+                              first
+                              second
+                              :id
+                              (->Attack (:id player))
+                              clara/insert-unconditional!))
+                   :update-mouse-world-coords
+                   (let [window Window
+                         mouse Mouse
+                         :when (= nil (:world-coords mouse))
+                         player Entity
+                         :when (= (:char-type player) :player)]
+                     (let [{:keys [x y]} mouse
+                           {:keys [width height]} window
+                           ;; convert mouse coords to (-1 to 1) coords
+                           matrix (->> (m/projection-matrix width height)
+                                       (m/multiply-matrices 3 (m/translation-matrix x y)))
+                           wx (nth matrix 6)
+                           wy (* -1 (nth matrix 7))
+                           ;; convert to tile coords
+                           y-multiplier (/ vertical-tiles 2)
+                           x-multiplier (* y-multiplier (/ width height))
+                           wx (* wx x-multiplier)
+                           wy (* wy y-multiplier)
+                           ;; make mouse relative to player position
+                           wx (+ wx (:x player))
+                           wy (+ wy (:y player))]
+                       (clarax/merge! mouse {:world-coords {:x wx :y wy}})))
                    :attack
                    (let [attack Attack
                          source Entity
@@ -157,7 +201,7 @@
                      (clara/retract! attack))}
                   ->session
                   (clara/insert
-                    (->Mouse 0 0 nil)
+                    (->Mouse 0 0 nil nil)
                     (->Keys #{}))
                   clara/fire-rules
                   atom))
@@ -183,7 +227,7 @@
     (fn [session]
       (as-> session $
             (clara/query $ :get-mouse)
-            (clarax/merge session $ {:x x :y y})
+            (clarax/merge session $ {:x x :y y :world-coords nil})
             (clara/fire-rules $)))))
 
 (defn update-window-size! [width height]
