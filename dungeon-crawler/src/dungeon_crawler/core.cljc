@@ -103,6 +103,8 @@
                                                    (assoc :game game :direction nil))))))
                    :update-camera
                    (let [window Window
+                         :when (or (pos? (:width window))
+                                   (pos? (:height window)))
                          player Entity
                          :when (= (:char-type player) :player)
                          camera Camera
