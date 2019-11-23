@@ -34,7 +34,13 @@
     (MemoryUtil/memFree *fb-height)
     (MemoryUtil/memFree *window-width)
     (MemoryUtil/memFree *window-height)
-    (c/update-mouse-coords! x y)))
+    (as-> (c/update-mouse-coords! x y)
+          show-hand?
+          (GLFW/glfwSetCursor window
+            (GLFW/glfwCreateStandardCursor
+              (if show-hand?
+                GLFW/GLFW_HAND_CURSOR
+                GLFW/GLFW_ARROW_CURSOR))))))
 
 (defn on-mouse-click! [window button action mods]
   (c/update-mouse-button! (when (= action GLFW/GLFW_PRESS)

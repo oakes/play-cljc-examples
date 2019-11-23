@@ -21,6 +21,7 @@
 (def orig-camera (e/->camera true))
 (def vertical-tiles 7)
 (def max-attack-distance 1)
+(def max-cursor-distance 0.5)
 (def min-attack-interval 0.25)
 
 (defrecord Game [total-time delta-time context])
@@ -98,6 +99,18 @@
                    (fn []
                      (let [tiled-map TiledMap]
                        tiled-map))
+                   :get-enemy-under-cursor
+                   (fn []
+                     (let [mouse Mouse
+                           :when (not= nil (:world-coords mouse))
+                           target [Entity]
+                           :when (not= (:char-type target) :player)]
+                       (some->> target
+                                (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
+                                (sort-by first)
+                                (filter #(<= (first %) max-cursor-distance))
+                                first
+                                second)))
                    :move-enemy
                    (let [game Game
                          player Entity
@@ -180,7 +193,7 @@
                      (some->> target
                               (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
                               (sort-by first)
-                              (filter #(<= (first %) max-attack-distance))
+                              (filter #(<= (first %) max-cursor-distance))
                               first
                               second
                               :id
@@ -230,12 +243,13 @@
             (clara/fire-rules $)))))
 
 (defn update-mouse-coords! [x y]
-  (swap! *session
-    (fn [session]
-      (as-> session $
-            (clara/query $ :get-mouse)
-            (clarax/merge session $ {:x x :y y :world-coords nil})
-            (clara/fire-rules $)))))
+  (-> (swap! *session
+        (fn [session]
+          (as-> session $
+                (clara/query $ :get-mouse)
+                (clarax/merge session $ {:x x :y y :world-coords nil})
+                (clara/fire-rules $))))
+      (clara/query :get-enemy-under-cursor)))
 
 (defn update-window-size! [width height]
   (swap! *session

@@ -24,7 +24,10 @@
       (let [bounds (.getBoundingClientRect canvas)
             x (- (.-clientX event) (.-left bounds))
             y (- (.-clientY event) (.-top bounds))]
-        (c/update-mouse-coords! x y))))
+        (as-> (c/update-mouse-coords! x y)
+              show-hand?
+              (-> js/document .-body .-style .-cursor
+                  (set! (if show-hand? "pointer" "default")))))))
   (events/listen js/window "mousedown"
     (fn [event]
       (c/update-mouse-button! (mousecode->keyword (.-button event)))))
