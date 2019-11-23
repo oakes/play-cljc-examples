@@ -153,7 +153,7 @@
 
 (defn touching-tile? [{:keys [layers map-width map-height]} layer-name x y width height]
   (let [[x y] (screen->isometric
-                (+ x (/ (- 1 width) 2))
+                (+ x (/ width 2))
                 (+ y height))
         layer (get layers layer-name)
         start-x (math round (float x))
