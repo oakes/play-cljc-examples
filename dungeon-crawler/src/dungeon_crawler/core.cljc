@@ -61,8 +61,12 @@
         wx (* wx x-multiplier)
         wy (* wy y-multiplier)
         ;; make mouse relative to player position
-        wx (+ wx (:x player))
-        wy (+ wy (:y player))]
+        wx (-> wx
+               (+ (:x player))
+               (- (:width player)))
+        wy (-> wy
+               (+ (:y player))
+               (- (:height player)))]
    {:world-coords {:x wx :y wy}}))
 
 (def *session (-> {:get-game
