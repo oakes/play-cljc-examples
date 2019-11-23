@@ -1,7 +1,7 @@
 (ns dungeon-crawler.core
   (:require [dungeon-crawler.utils :as utils]
             [dungeon-crawler.move :as move]
-            [dungeon-crawler.entities :as entities #?@(:cljs [:refer Entity])]
+            [dungeon-crawler.entities :as entities #?@(:cljs [:refer [Entity]])]
             [clojure.edn :as edn]
             [play-cljc.gl.core :as c]
             [play-cljc.gl.entities-2d :as e]
