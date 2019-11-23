@@ -29,7 +29,7 @@
 (defrecord Mouse [x y world-coords button])
 (defrecord Keys [pressed])
 (defrecord TiledMap [layers width height entities])
-(defrecord Attack [source-id target-id])
+(defrecord Attack [pursue? source-id target-id])
 
 (defn update-camera [window player]
   (let [{game-width :width game-height :height} window
@@ -162,7 +162,7 @@
                               first
                               second
                               :id
-                              (->Attack (:id player))
+                              (->Attack false (:id player))
                               clara/insert-unconditional!))
                    :player-attack-with-mouse
                    (let [game Game
@@ -172,7 +172,8 @@
                                         (- (:last-attack player))
                                         (>= min-attack-interval)))
                          mouse Mouse
-                         :when (= (:button mouse) :right)
+                         :when (and (= (:button mouse) :right)
+                                    (not= nil (:world-coords mouse)))
                          target [Entity]
                          :when (not= (:char-type target) :player)]
                      (clarax/merge! player {:last-attack (:total-time game)})
@@ -183,7 +184,7 @@
                               first
                               second
                               :id
-                              (->Attack (:id player))
+                              (->Attack true (:id player))
                               clara/insert-unconditional!))
                    :update-mouse-world-coords
                    (let [window Window
@@ -198,9 +199,12 @@
                          :when (= (:id source) (:source-id attack))
                          target Entity
                          :when (= (:id target) (:target-id attack))]
-                     (when (<= (move/calc-distance source target)
-                               max-attack-distance)
-                       (println (:char-type source) "attacked" (:char-type target)))
+                     (cond
+                       (<= (move/calc-distance source target)
+                           max-attack-distance)
+                       (println (:char-type source) "attacks" (:char-type target))
+                       (:pursue? attack)
+                       (println (:char-type source) "pursues" (:char-type target)))
                      (clara/retract! attack))}
                   ->session
                   (clara/insert
