@@ -46,6 +46,24 @@
      :min-y min-y
      :max-y max-y}))
 
+(defn update-mouse [window mouse player]
+  (let [{:keys [x y]} mouse
+        {:keys [width height]} window
+        ;; convert mouse coords to (-1 to 1) coords
+        matrix (->> (m/projection-matrix width height)
+                    (m/multiply-matrices 3 (m/translation-matrix x y)))
+        wx (nth matrix 6)
+        wy (* -1 (nth matrix 7))
+        ;; convert to tile coords
+        y-multiplier (/ vertical-tiles 2)
+        x-multiplier (* y-multiplier (/ width height))
+        wx (* wx x-multiplier)
+        wy (* wy y-multiplier)
+        ;; make mouse relative to player position
+        wx (+ wx (:x player))
+        wy (+ wy (:y player))]
+   {:world-coords {:x wx :y wy}}))
+
 (def *session (-> {:get-game
                    (fn []
                      (let [game Game]
@@ -173,22 +191,7 @@
                          :when (= nil (:world-coords mouse))
                          player Entity
                          :when (= (:char-type player) :player)]
-                     (let [{:keys [x y]} mouse
-                           {:keys [width height]} window
-                           ;; convert mouse coords to (-1 to 1) coords
-                           matrix (->> (m/projection-matrix width height)
-                                       (m/multiply-matrices 3 (m/translation-matrix x y)))
-                           wx (nth matrix 6)
-                           wy (* -1 (nth matrix 7))
-                           ;; convert to tile coords
-                           y-multiplier (/ vertical-tiles 2)
-                           x-multiplier (* y-multiplier (/ width height))
-                           wx (* wx x-multiplier)
-                           wy (* wy y-multiplier)
-                           ;; make mouse relative to player position
-                           wx (+ wx (:x player))
-                           wy (+ wy (:y player))]
-                       (clarax/merge! mouse {:world-coords {:x wx :y wy}})))
+                     (clarax/merge! mouse (update-mouse window mouse player)))
                    :attack
                    (let [attack Attack
                          source Entity
