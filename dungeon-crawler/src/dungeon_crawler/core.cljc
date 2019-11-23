@@ -134,19 +134,24 @@
                          target [Entity]
                          :when (not= (:char-type target) :player)]
                      (clarax/merge! player {:last-attack (:total-time game)})
-                     (when-let [[distance entity] (->> target
-                                                   (mapv #(vector (move/calc-distance % player) %))
-                                                   (sort-by first)
-                                                   first)]
-                        (when (<= distance max-attack-distance)
-                          (clara/insert-unconditional! (->Attack (:id player) (:id entity))))))
+                     (some->> target
+                              (mapv #(vector (move/calc-distance % player) %))
+                              (sort-by first)
+                              (filter #(<= (first %) max-attack-distance))
+                              first
+                              second
+                              :id
+                              (->Attack (:id player))
+                              clara/insert-unconditional!))
                    :attack
                    (let [attack Attack
                          source Entity
                          :when (= (:id source) (:source-id attack))
                          target Entity
                          :when (= (:id target) (:target-id attack))]
-                     (println (:char-type source) "attacked" (:char-type target))
+                     (when (<= (move/calc-distance source target)
+                               max-attack-distance)
+                       (println (:char-type source) "attacked" (:char-type target)))
                      (clara/retract! attack))}
                   ->session
                   (clara/insert
