@@ -19,15 +19,21 @@
 (defonce *entity-cache (atom {}))
 
 (def spawn-data
- [{:char-type :player
+ [{:attrs {:char-type :player
+           :health 10
+           :damage 4}
    :path "characters/male_light.png"
    :mask-size 128
    :instances [player-spawn-point]}
-  {:char-type :ogre
+  {:attrs {:char-type :ogre
+           :health 8
+           :damage 2}
    :path "characters/ogre.png"
    :mask-size 256
    :instances (->> spawn-points shuffle (take 5))}
-  {:char-type :elemental
+  {:attrs {:char-type :elemental
+           :health 6
+           :damage 1}
    :path "characters/elemental.png"
    :mask-size 256
    :instances (->> spawn-points shuffle (take 5))}]) 
@@ -38,7 +44,7 @@
            (vec (for [x (range 0 (:width image) tile-size)]
                   (t/crop image (+ x offset) (+ y offset) mask-size mask-size)))))))
 
-(defn ->entity' [entity char-type mask-size x y]
+(defn ->entity' [entity attrs mask-size x y]
   (let [grid (create-grid entity tile-size mask-size)
         moves (zipmap move/directions
                 (map #(vec (take 4 %)) grid))
@@ -51,30 +57,31 @@
         deads (zipmap move/directions
                 (map #(nth % 7) grid))
         [x y] (tiles/isometric->screen x y)]
-    {:id (swap! *latest-id inc)
-     :char-type char-type
-     :moves moves
-     :attacks attacks
-     :specials specials
-     :hits hits
-     :deads deads
-     :direction :s
-     :current-image (get-in moves [:s 0])
-     :width (/ mask-size tile-size)
-     :height (/ mask-size tile-size)
-     :x x
-     :y y
-     :x-change 0
-     :y-change 0
-     :x-velocity 0
-     :y-velocity 0
-     :last-attack 0}))
+    (merge attrs
+      {:id (swap! *latest-id inc)
+       :moves moves
+       :attacks attacks
+       :specials specials
+       :hits hits
+       :deads deads
+       :direction :s
+       :current-image (get-in moves [:s 0])
+       :width (/ mask-size tile-size)
+       :height (/ mask-size tile-size)
+       :x x
+       :y y
+       :x-change 0
+       :y-change 0
+       :x-velocity 0
+       :y-velocity 0
+       :last-attack 0})))
 
-(defn ->entity [game {:keys [char-type mask-size]} {:keys [data width height]} {:keys [x y]}]
-  (-> (or (char-type @*entity-cache)
-          (->> (e/->image-entity game data width height)
-               (c/compile game)
-               (swap! *entity-cache assoc char-type)
-               char-type))
-      (->entity' char-type mask-size x y)))
+(defn ->entity [game {:keys [attrs mask-size]} {:keys [data width height]} {:keys [x y]}]
+  (let [{:keys [char-type]} attrs]
+    (-> (or (char-type @*entity-cache)
+            (->> (e/->image-entity game data width height)
+                 (c/compile game)
+                 (swap! *entity-cache assoc char-type)
+                 char-type))
+        (->entity' attrs mask-size x y))))
 

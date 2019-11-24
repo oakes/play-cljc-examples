@@ -36,7 +36,9 @@
                    x-velocity
                    y-velocity
                    game
-                   last-attack])
+                   last-attack
+                   health
+                   damage])
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
 (defrecord Camera [camera window player min-y max-y])
@@ -47,6 +49,7 @@
 (defrecord Animation [entity-id type expire-time])
 (defrecord Direction [entity-id x y])
 (defrecord Sound [file-name])
+(defrecord Damage [entity-id damage])
 
 (defn update-camera [window player]
   (let [{game-width :width game-height :height} window
@@ -140,7 +143,8 @@
           :when (= (:char-type player) :player)
           entity Entity
           :when (and (not= (:game entity) game)
-                     (not= (:char-type entity) :player))]
+                     (not= (:char-type entity) :player)
+                     (> (:health entity) 0))]
       (clarax/merge! entity (-> (move/get-enemy-velocity entity player)
                                 (move/move entity game)
                                 (assoc :game game :animate? true))))
@@ -151,7 +155,8 @@
           mouse Mouse
           player Entity
           :when (and (not= (:game player) game)
-                     (= (:char-type player) :player))]
+                     (= (:char-type player) :player)
+                     (> (:health player) 0))]
       (clarax/merge! player (-> (move/get-player-velocity window (:pressed keys) mouse player)
                                 (move/move player game)
                                 (assoc :game game :animate? true))))
@@ -191,7 +196,8 @@
           keys Keys
           :when (contains? (:pressed keys) :space)
           target [Entity]
-          :when (not= (:char-type target) :player)]
+          :when (and (not= (:char-type target) :player)
+                     (> (:health target) 0))]
       (clarax/merge! player {:last-attack (:total-time game)})
       (when-let [target (some->> target
                                  (mapv #(vector (move/calc-distance % player) %))
@@ -213,7 +219,8 @@
           :when (and (= (:button mouse) :right)
                      (not= nil (:world-coords mouse)))
           target [Entity]
-          :when (not= (:char-type target) :player)]
+          :when (and (not= (:char-type target) :player)
+                     (> (:health target) 0))]
       (clarax/merge! player {:last-attack (:total-time game)})
       (when-let [target (some->> target
                                  (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
@@ -243,11 +250,27 @@
       (cond
         (<= (move/calc-distance source target)
             max-attack-distance)
-        (->> (+ (:total-time game) animation-duration)
-             (->Animation (:id source) :attacks)
-             clara/insert-unconditional!)
+        (let [duration (+ (:total-time game) animation-duration)]
+          (->> duration
+               (->Animation (:id source) :attacks)
+               clara/insert-unconditional!)
+          (->> duration
+               (->Animation (:id target) :hits)
+               clara/insert-unconditional!)
+          (->> (:damage source)
+               (->Damage (:id target))
+               clara/insert-unconditional!))
         (:pursue? attack)
         (println (:char-type source) "pursues" (:char-type target))))
+    :damage
+    (let [damage Damage
+          entity Entity
+          :when (= (:id entity) (:entity-id damage))]
+      (clara/retract! damage)
+      (let [health (- (:health entity) (:damage damage))]
+        (clarax/merge! entity {:health health :animate? true})
+        (when (<= health 0)
+          (clara/insert-unconditional! (->Sound "death.wav")))))
     :remove-expired-animations
     (let [game Game
           animation Animation
