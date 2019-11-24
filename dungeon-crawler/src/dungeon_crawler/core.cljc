@@ -135,10 +135,9 @@
                          player Entity
                          :when (and (not= (:game player) game)
                                     (= (:char-type player) :player))]
-                     (let [[xv yv :as v] (move/get-player-velocity window (:pressed keys) mouse player)]
-                       (when (or (not= 0 xv) (not= 0 yv))
-                         (clarax/merge! player (-> (move/move v player game)
-                                                   (assoc :game game :animate? true))))))
+                     (clarax/merge! player (-> (move/get-player-velocity window (:pressed keys) mouse player)
+                                               (move/move player game)
+                                               (assoc :game game :animate? true))))
                    :update-camera
                    (let [window Window
                          :when (or (pos? (:width window))
@@ -152,10 +151,12 @@
                    :animate
                    (let [game Game
                          entity Entity
-                         :when (= true (:animate? entity))]
-                     (some->> (move/animate entity game)
-                              (merge {:animate? false})
-                              (clarax/merge! entity)))
+                         :when (= true (:animate? entity))
+                         animation [Animation]
+                         :when (= (:id entity) (:entity-id animation))]
+                     (->> (move/animate entity game animation)
+                          (merge {:animate? false})
+                          (clarax/merge! entity)))
                    :dont-overlap-tile
                    (let [tiled-map TiledMap
                          entity Entity
@@ -220,14 +221,14 @@
                          :when (= (:id source) (:source-id attack))
                          target Entity
                          :when (= (:id target) (:target-id attack))]
+                     (clara/retract! attack)
                      (cond
                        (<= (move/calc-distance source target)
                            max-attack-distance)
                        (-> (->Animation (:id source) :attacks (+ (:total-time game) animation-duration))
                            clara/insert-unconditional!)
                        (:pursue? attack)
-                       (println (:char-type source) "pursues" (:char-type target)))
-                     (clara/retract! attack))
+                       (println (:char-type source) "pursues" (:char-type target))))
                    :remove-expired-animations
                    (let [game Game
                          animation Animation
