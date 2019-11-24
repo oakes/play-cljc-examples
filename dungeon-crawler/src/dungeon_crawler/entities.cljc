@@ -20,7 +20,7 @@
 
 (def spawn-data
  [{:attrs {:char-type :player
-           :health 10
+           :health 20
            :damage 4
            :attack-delay 0.25}
    :path "characters/male_light.png"
