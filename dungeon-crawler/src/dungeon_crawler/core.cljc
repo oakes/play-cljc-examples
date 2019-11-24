@@ -126,7 +126,7 @@
                                     (not= (:char-type entity) :player))]
                      (clarax/merge! entity (-> (move/get-enemy-velocity entity player)
                                                (move/move entity game)
-                                               (assoc :game game :direction nil))))
+                                               (assoc :game game :animate? true))))
                    :move-player
                    (let [game Game
                          window Window
@@ -138,7 +138,7 @@
                      (let [[xv yv :as v] (move/get-player-velocity window (:pressed keys) mouse player)]
                        (when (or (not= 0 xv) (not= 0 yv))
                          (clarax/merge! player (-> (move/move v player game)
-                                                   (assoc :game game :direction nil))))))
+                                                   (assoc :game game :animate? true))))))
                    :update-camera
                    (let [window Window
                          :when (or (pos? (:width window))
@@ -152,8 +152,9 @@
                    :animate
                    (let [game Game
                          entity Entity
-                         :when (= (:direction entity) nil)]
+                         :when (= true (:animate? entity))]
                      (some->> (move/animate entity game)
+                              (merge {:animate? false})
                               (clarax/merge! entity)))
                    :dont-overlap-tile
                    (let [tiled-map TiledMap

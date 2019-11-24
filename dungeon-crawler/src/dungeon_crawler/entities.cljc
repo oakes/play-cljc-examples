@@ -13,6 +13,7 @@
                    hits
                    deads
                    direction
+                   animate?
                    current-image
                    width
                    height

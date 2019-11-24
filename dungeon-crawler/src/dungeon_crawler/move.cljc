@@ -135,13 +135,12 @@
     :as character}
    {:keys [total-time]}]
   (when-let [direction (get-direction x-velocity y-velocity)]
-    (-> character
-        (assoc :current-image
-          (if (or (not= x-velocity 0)
-                  (not= y-velocity 0))
-            (let [images (direction moves)
-                  cycle-time (mod total-time (* animation-secs (count images)))]
-              (nth images (int (/ cycle-time animation-secs))))
-            current-image))
-        (assoc :direction direction))))
+    {:current-image
+     (if (or (not= x-velocity 0)
+             (not= y-velocity 0))
+       (let [images (direction moves)
+             cycle-time (mod total-time (* animation-secs (count images)))]
+         (nth images (int (/ cycle-time animation-secs))))
+       current-image)
+     :direction direction}))
 
