@@ -15,16 +15,17 @@
 ;; this is a perf optimization.
 ;; while we could call clara/query with these keywords directly,
 ;; saving them to global vars will avoid the hash lookup inside the game loop.
-(def get-game (-> @session/*session .query-fns :get-game))
-(def should-restart? (-> @session/*session .query-fns :should-restart?))
-(def get-player (-> @session/*session .query-fns :get-player))
-(def get-enemies (-> @session/*session .query-fns :get-enemies))
-(def get-tiled-map (-> @session/*session .query-fns :get-tiled-map))
-(def get-window (-> @session/*session .query-fns :get-window))
-(def get-camera (-> @session/*session .query-fns :get-camera))
-(def get-keys (-> @session/*session .query-fns :get-keys))
-(def get-mouse (-> @session/*session .query-fns :get-mouse))
-(def get-enemy-under-cursor (-> @session/*session .query-fns :get-enemy-under-cursor))
+(let [query-fns (clarax/query-fns @session/*session)]
+  (def get-game (:get-game query-fns))
+  (def should-restart? (:should-restart? query-fns))
+  (def get-player (:get-player query-fns))
+  (def get-enemies (:get-enemies query-fns))
+  (def get-tiled-map (:get-tiled-map query-fns))
+  (def get-window (:get-window query-fns))
+  (def get-camera (:get-camera query-fns))
+  (def get-keys (:get-keys query-fns))
+  (def get-mouse (:get-mouse query-fns))
+  (def get-enemy-under-cursor (:get-enemy-under-cursor query-fns)))
 
 (defn update-pressed-keys! [f k]
   (swap! session/*session
