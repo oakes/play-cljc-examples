@@ -1,6 +1,5 @@
 (ns dungeon-crawler.start
   (:require [dungeon-crawler.core :as c]
-            [dungeon-crawler.session :as session]
             [play-cljc.gl.core :as pc]
             [goog.events :as events]))
 
@@ -25,16 +24,15 @@
       (let [bounds (.getBoundingClientRect canvas)
             x (- (.-clientX event) (.-left bounds))
             y (- (.-clientY event) (.-top bounds))]
-        (as-> (session/update-mouse-coords! x y)
-              show-hand?
-              (-> js/document .-body .-style .-cursor
-                  (set! (if show-hand? "pointer" "default")))))))
+        (let [show-hand? (c/update-mouse-coords! x y)]
+          (-> js/document .-body .-style .-cursor
+              (set! (if show-hand? "pointer" "default")))))))
   (events/listen js/window "mousedown"
     (fn [event]
-      (session/update-mouse-button! (mousecode->keyword (.-button event)))))
+      (c/update-mouse-button! (mousecode->keyword (.-button event)))))
   (events/listen js/window "mouseup"
     (fn [event]
-      (session/update-mouse-button! nil))))
+      (c/update-mouse-button! nil))))
 
 (defn keycode->keyword [keycode]
   (condp = keycode
@@ -49,18 +47,18 @@
   (events/listen js/window "keydown"
     (fn [event]
       (when-let [k (keycode->keyword (.-keyCode event))]
-        (session/update-pressed-keys! conj k))))
+        (c/update-pressed-keys! conj k))))
   (events/listen js/window "keyup"
     (fn [event]
       (when-let [k (keycode->keyword (.-keyCode event))]
-        (session/update-pressed-keys! disj k)))))
+        (c/update-pressed-keys! disj k)))))
 
 (defn resize [context]
   (let [display-width context.canvas.clientWidth
         display-height context.canvas.clientHeight]
     (set! context.canvas.width display-width)
     (set! context.canvas.height display-height)
-    (session/update-window-size! display-width display-height)))
+    (c/update-window-size! display-width display-height)))
 
 (defn listen-for-resize [context]
   (events/listen js/window "resize"

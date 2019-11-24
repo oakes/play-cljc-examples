@@ -12,6 +12,39 @@
             #?(:clj  [dungeon-crawler.tiles :as tiles :refer [read-tiled-map]]
                :cljs [dungeon-crawler.tiles :as tiles :refer-macros [read-tiled-map]])))
 
+(defn update-pressed-keys! [f k]
+  (swap! session/*session
+    (fn [session]
+      (as-> session $
+            (clara/query $ :get-keys)
+            (clarax/merge session $ (update $ :pressed f k))
+            (clara/fire-rules $)))))
+
+(defn update-mouse-button! [button]
+  (swap! session/*session
+    (fn [session]
+      (as-> session $
+            (clara/query $ :get-mouse)
+            (clarax/merge session $ {:button button})
+            (clara/fire-rules $)))))
+
+(defn update-mouse-coords! [x y]
+  (-> (swap! session/*session
+        (fn [session]
+          (as-> session $
+                (clara/query $ :get-mouse)
+                (clarax/merge session $ {:x x :y y :world-coords nil})
+                (clara/fire-rules $))))
+      (clara/query :get-enemy-under-cursor)))
+
+(defn update-window-size! [width height]
+  (swap! session/*session
+    (fn [session]
+      (as-> session $
+            (clara/query $ :get-window)
+            (clarax/merge session $ {:width width :height height})
+            (clara/fire-rules $)))))
+
 (def parsed-tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 
 (defn load-entities [game]
