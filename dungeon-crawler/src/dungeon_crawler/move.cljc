@@ -60,18 +60,18 @@
                           (math pow (- y1 y2) 2)))))
 
 (defn get-enemy-velocity [{:keys [x-velocity y-velocity] :as enemy} player]
-  (let [distance (calc-distance enemy player)]
-    (cond
-      (< 0.5 distance 2)
-      [(cond-> max-enemy-velocity
-               (< (:x player) (:x enemy))
-               (* -1))
-       (cond-> max-enemy-velocity
-               (< (:y player) (:y enemy))
-               (* -1))]
-      (<= distance 0.5)
-      [0 0]
-      :else
+  (or (when (> (:health player) 0)
+        (let [distance (calc-distance enemy player)]
+          (cond
+            (< 0.5 distance 2)
+            [(cond-> max-enemy-velocity
+                     (< (:x player) (:x enemy))
+                     (* -1))
+             (cond-> max-enemy-velocity
+                     (< (:y player) (:y enemy))
+                     (* -1))]
+            (<= distance 0.5)
+            [0 0])))
       [(if (= 0 x-velocity)
          (-> (rand-int 3)
              (- 1)
@@ -81,7 +81,7 @@
          (-> (rand-int 3)
              (- 1)
              (* max-enemy-velocity))
-         y-velocity)])))
+         y-velocity)]))
 
 (defn get-direction
   [x-velocity y-velocity]

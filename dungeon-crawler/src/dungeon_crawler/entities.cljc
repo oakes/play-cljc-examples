@@ -21,19 +21,22 @@
 (def spawn-data
  [{:attrs {:char-type :player
            :health 10
-           :damage 4}
+           :damage 4
+           :attack-delay 0.25}
    :path "characters/male_light.png"
    :mask-size 128
    :instances [player-spawn-point]}
   {:attrs {:char-type :ogre
            :health 8
-           :damage 2}
+           :damage 2
+           :attack-delay 1}
    :path "characters/ogre.png"
    :mask-size 256
    :instances (->> spawn-points shuffle (take 5))}
   {:attrs {:char-type :elemental
            :health 6
-           :damage 1}
+           :damage 1
+           :attack-delay 0.75}
    :path "characters/elemental.png"
    :mask-size 256
    :instances (->> spawn-points shuffle (take 5))}]) 

@@ -89,6 +89,9 @@
 
 (defn tick [game]
   (let [session @session/*session
+        session (if (clara/query session :should-restart?)
+                  (session/restart!)
+                  session)
         player (clara/query session :get-player)
         enemies (clara/query session :get-enemies)
         tiled-map (clara/query session :get-tiled-map)

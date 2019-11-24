@@ -12,10 +12,10 @@
 
 (def orig-camera (e/->camera true))
 (def vertical-tiles 7)
-(def max-attack-distance 1)
+(def max-attack-distance 0.5)
 (def max-cursor-distance 0.5)
-(def min-attack-interval 0.25)
 (def animation-duration 0.5)
+(def restart-delay 1)
 
 (defrecord Entity [id
                    char-type
@@ -38,7 +38,8 @@
                    game
                    last-attack
                    health
-                   damage])
+                   damage
+                   attack-delay])
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
 (defrecord Camera [camera window player min-y max-y])
@@ -50,6 +51,7 @@
 (defrecord Direction [entity-id x y])
 (defrecord Sound [file-name])
 (defrecord Damage [entity-id damage])
+(defrecord Restart [restart-time])
 
 (defn update-camera [window player]
   (let [{game-width :width game-height :height} window
@@ -134,7 +136,13 @@
                  (sort-by first)
                  (filter #(<= (first %) max-cursor-distance))
                  first
-                 second)))})
+                 second)))
+    :should-restart?
+    (fn []
+      (let [game Game
+            restart Restart]
+        (some-> (:restart-time restart)
+                (<= (:total-time game)))))})
 
 (def rules
   '{:move-enemy
@@ -192,7 +200,7 @@
           :when (and (= (:char-type player) :player)
                      (-> (:total-time game)
                          (- (:last-attack player))
-                         (>= min-attack-interval)))
+                         (>= (:attack-delay player))))
           keys Keys
           :when (contains? (:pressed keys) :space)
           target [Entity]
@@ -206,15 +214,14 @@
                                  first
                                  second)]
         (clara/insert-unconditional! (->Attack false (:id player) (:id target)))
-        (clara/insert-unconditional! (->Direction (:id player) (:x target) (:y target)))
-        (clara/insert-unconditional! (->Sound "monsterhurt.wav"))))
+        (clara/insert-unconditional! (->Direction (:id player) (:x target) (:y target)))))
     :player-attack-with-mouse
     (let [game Game
           player Entity
           :when (and (= (:char-type player) :player)
                      (-> (:total-time game)
                          (- (:last-attack player))
-                         (>= min-attack-interval)))
+                         (>= (:attack-delay player))))
           mouse Mouse
           :when (and (= (:button mouse) :right)
                      (not= nil (:world-coords mouse)))
@@ -230,8 +237,21 @@
                                  second)]
         (clara/insert-unconditional! (->Attack true (:id player) (:id target)))
         (let [{:keys [x y]} (:world-coords mouse)]
-          (clara/insert-unconditional! (->Direction (:id player) x y)))
-        (clara/insert-unconditional! (->Sound "monsterhurt.wav"))))
+          (clara/insert-unconditional! (->Direction (:id player) x y)))))
+    :enemy-attack
+    (let [game Game
+          entity Entity
+          :when (and (not= (:char-type entity) :player)
+                     (> (:health entity) 0)
+                     (-> (:total-time game)
+                         (- (:last-attack entity))
+                         (>= (:attack-delay entity))))
+          player Entity
+          :when (and (= (:char-type player) :player)
+                     (<= (move/calc-distance entity player) max-attack-distance)
+                     (> (:health player) 0))]
+      (clarax/merge! entity {:last-attack (:total-time game)})
+      (clara/insert-unconditional! (->Attack false (:id entity) (:id player))))
     :update-mouse-world-coords
     (let [window Window
           mouse Mouse
@@ -250,7 +270,11 @@
       (cond
         (<= (move/calc-distance source target)
             max-attack-distance)
-        (let [duration (+ (:total-time game) animation-duration)]
+        (let [duration (+ (:total-time game) animation-duration)
+              sound-file (if (= (:char-type source) :player)
+                           "monsterhurt.wav"
+                           "playerhurt.wav")]
+          (clara/insert-unconditional! (->Sound sound-file))
           (->> duration
                (->Animation (:id source) :attacks)
                clara/insert-unconditional!)
@@ -263,14 +287,17 @@
         (:pursue? attack)
         (println (:char-type source) "pursues" (:char-type target))))
     :damage
-    (let [damage Damage
+    (let [game Game
+          damage Damage
           entity Entity
           :when (= (:id entity) (:entity-id damage))]
       (clara/retract! damage)
       (let [health (- (:health entity) (:damage damage))]
         (clarax/merge! entity {:health health :animate? true})
         (when (<= health 0)
-          (clara/insert-unconditional! (->Sound "death.wav")))))
+          (clara/insert-unconditional! (->Sound "death.wav"))
+          (when (= (:char-type entity) :player)
+            (clara/insert-unconditional! (->Restart (+ (:total-time game) restart-delay)))))))
     :remove-expired-animations
     (let [game Game
           animation Animation
@@ -294,10 +321,15 @@
 #?(:clj (defmacro ->session-wrapper []
           (list '->session (merge queries rules))))
 
-(def *session (-> (->session-wrapper)
-                  (clara/insert
-                    (->Mouse 0 0 nil nil)
-                    (->Keys #{}))
-                  clara/fire-rules
-                  atom))
+(def *session (atom nil))
+
+(defn restart! []
+  (reset! *session
+    (-> (->session-wrapper)
+        (clara/insert
+          (->Mouse 0 0 nil nil)
+          (->Keys #{}))
+        clara/fire-rules)))
+
+(restart!)
 

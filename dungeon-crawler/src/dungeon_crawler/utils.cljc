@@ -59,7 +59,7 @@
            :cljs (doto (js/Audio.)
                    (-> .-src (set! file-name))))))
     {}
-    ["monsterhurt.wav" "death.wav"]))
+    ["monsterhurt.wav" "playerhurt.wav" "death.wav"]))
 
 (defn play-sound! [file-name]
   #?(:clj (doto (get sounds file-name)
