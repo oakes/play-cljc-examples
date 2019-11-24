@@ -62,8 +62,9 @@
     ["monsterhurt.wav" "playerhurt.wav" "death.wav"]))
 
 (defn play-sound! [file-name]
-  #?(:clj (doto (get sounds file-name)
-            (.setFramePosition 0)
-            .start)
+  #?(:clj (future
+            (doto (get sounds file-name)
+              (.setFramePosition 0)
+              .start))
      :cljs (.play (get sounds file-name))))
 
