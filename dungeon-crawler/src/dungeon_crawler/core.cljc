@@ -12,11 +12,25 @@
             #?(:clj  [dungeon-crawler.tiles :as tiles :refer [read-tiled-map]]
                :cljs [dungeon-crawler.tiles :as tiles :refer-macros [read-tiled-map]])))
 
+;; this is a perf optimization.
+;; while we could call clara/query with these keywords directly,
+;; saving them to global vars will avoid the hash lookup inside the game loop.
+(def get-game (-> @session/*session .query-fns :get-game))
+(def should-restart? (-> @session/*session .query-fns :should-restart?))
+(def get-player (-> @session/*session .query-fns :get-player))
+(def get-enemies (-> @session/*session .query-fns :get-enemies))
+(def get-tiled-map (-> @session/*session .query-fns :get-tiled-map))
+(def get-window (-> @session/*session .query-fns :get-window))
+(def get-camera (-> @session/*session .query-fns :get-camera))
+(def get-keys (-> @session/*session .query-fns :get-keys))
+(def get-mouse (-> @session/*session .query-fns :get-mouse))
+(def get-enemy-under-cursor (-> @session/*session .query-fns :get-enemy-under-cursor))
+
 (defn update-pressed-keys! [f k]
   (swap! session/*session
     (fn [session]
       (as-> session $
-            (clara/query $ :get-keys)
+            (get-keys $)
             (clarax/merge session $ (update $ :pressed f k))
             (clara/fire-rules $)))))
 
@@ -24,7 +38,7 @@
   (swap! session/*session
     (fn [session]
       (as-> session $
-            (clara/query $ :get-mouse)
+            (get-mouse $)
             (clarax/merge session $ {:button button})
             (clara/fire-rules $)))))
 
@@ -32,16 +46,16 @@
   (-> (swap! session/*session
         (fn [session]
           (as-> session $
-                (clara/query $ :get-mouse)
+                (get-mouse $)
                 (clarax/merge session $ {:x x :y y :world-coords nil})
                 (clara/fire-rules $))))
-      (clara/query :get-enemy-under-cursor)))
+      get-enemy-under-cursor))
 
 (defn update-window-size! [width height]
   (swap! session/*session
     (fn [session]
       (as-> session $
-            (clara/query $ :get-window)
+            (get-window $)
             (clarax/merge session $ {:width width :height height})
             (clara/fire-rules $)))))
 
@@ -89,14 +103,14 @@
 
 (defn tick [game]
   (let [session @session/*session
-        session (if (clara/query session :should-restart?)
+        session (if (should-restart? session)
                   (session/restart!)
                   session)
-        player (clara/query session :get-player)
-        enemies (clara/query session :get-enemies)
-        tiled-map (clara/query session :get-tiled-map)
-        {game-width :width game-height :height :as window} (clara/query session :get-window)
-        {:keys [camera min-y max-y]} (clara/query session :get-camera)]
+        player (get-player session)
+        enemies (get-enemies session)
+        tiled-map (get-tiled-map session)
+        {game-width :width game-height :height :as window} (get-window session)
+        {:keys [camera min-y max-y]} (get-camera session)]
     (when (and window (pos? game-width) (pos? game-height))
       (let [scaled-tile-size (/ game-height session/vertical-tiles)]
         ;; render the background
@@ -135,7 +149,7 @@
                     (c/render game entity))
                   entities)))))
     ;; insert/update the game record
-    (if-let [game' (clara/query session :get-game)]
+    (if-let [game' (get-game session)]
       (swap! session/*session
         (fn [session]
           (-> session
