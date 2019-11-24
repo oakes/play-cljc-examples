@@ -6,7 +6,6 @@
   (System/exit 1))
 
 (require
-  'ui-gallery.start
   '[cljs.build.api :as api]
   '[clojure.java.io :as io]
   '[clojure.string :as str]
@@ -55,6 +54,7 @@
 
 (defmethod task nil
   [_]
+  (require 'ui-gallery.start)
   (let [out-file "resources/public/main.js"
         out-dir "resources/public/main.out"]
     (println "Building main.js")
