@@ -1,7 +1,6 @@
 (ns dungeon-crawler.session
   (:require [dungeon-crawler.utils :as utils]
             [dungeon-crawler.move :as move]
-            [dungeon-crawler.entities :as entities #?@(:cljs [:refer [Entity]])]
             [play-cljc.gl.entities-2d :as e]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
@@ -9,8 +8,7 @@
             [clarax.rules :as clarax]
             #?(:clj  [clarax.macros-java :refer [->session]]
                :cljs [clarax.macros-js :refer-macros [->session]]))
-  #?(:cljs (:require-macros [dungeon-crawler.session :refer [->session-wrapper]]))
-  #?(:clj (:import [dungeon_crawler.entities Entity])))
+  #?(:cljs (:require-macros [dungeon-crawler.session :refer [->session-wrapper]])))
 
 (def orig-camera (e/->camera true))
 (def vertical-tiles 7)
@@ -19,6 +17,26 @@
 (def min-attack-interval 0.25)
 (def animation-duration 0.5)
 
+(defrecord Entity [id
+                   char-type
+                   moves
+                   attacks
+                   specials
+                   hits
+                   deads
+                   direction
+                   animate?
+                   current-image
+                   width
+                   height
+                   x
+                   y
+                   x-change
+                   y-change
+                   x-velocity
+                   y-velocity
+                   game
+                   last-attack])
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
 (defrecord Camera [camera window player min-y max-y])

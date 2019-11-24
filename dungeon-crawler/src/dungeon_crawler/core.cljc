@@ -23,7 +23,7 @@
             (->> instances
                  (reduce
                    (fn [session instance]
-                     (clara/insert session (entities/->entity game spawn-data image instance)))
+                     (clara/insert session (session/map->Entity (entities/->entity game spawn-data image instance))))
                    session)
                  clara/fire-rules)))))))
 

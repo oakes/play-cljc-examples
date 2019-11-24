@@ -5,27 +5,6 @@
             [dungeon-crawler.move :as move]
             [dungeon-crawler.tiles :as tiles]))
 
-(defrecord Entity [id
-                   char-type
-                   moves
-                   attacks
-                   specials
-                   hits
-                   deads
-                   direction
-                   animate?
-                   current-image
-                   width
-                   height
-                   x
-                   y
-                   x-change
-                   y-change
-                   x-velocity
-                   y-velocity
-                   game
-                   last-attack])
-
 (def tile-size 256)
 (def *latest-id (atom 0))
 (def player-spawn-point {:x 2.5 :y 2.5})
@@ -72,25 +51,24 @@
         deads (zipmap move/directions
                 (map #(nth % 7) grid))
         [x y] (tiles/isometric->screen x y)]
-    (map->Entity
-      {:id (swap! *latest-id inc)
-       :char-type char-type
-       :moves moves
-       :attacks attacks
-       :specials specials
-       :hits hits
-       :deads deads
-       :direction :s
-       :current-image (get-in moves [:s 0])
-       :width (/ mask-size tile-size)
-       :height (/ mask-size tile-size)
-       :x x
-       :y y
-       :x-change 0
-       :y-change 0
-       :x-velocity 0
-       :y-velocity 0
-       :last-attack 0})))
+    {:id (swap! *latest-id inc)
+     :char-type char-type
+     :moves moves
+     :attacks attacks
+     :specials specials
+     :hits hits
+     :deads deads
+     :direction :s
+     :current-image (get-in moves [:s 0])
+     :width (/ mask-size tile-size)
+     :height (/ mask-size tile-size)
+     :x x
+     :y y
+     :x-change 0
+     :y-change 0
+     :x-velocity 0
+     :y-velocity 0
+     :last-attack 0}))
 
 (defn ->entity [game {:keys [char-type mask-size]} {:keys [data width height]} {:keys [x y]}]
   (-> (or (char-type @*entity-cache)
@@ -99,5 +77,4 @@
                (swap! *entity-cache assoc char-type)
                char-type))
       (->entity' char-type mask-size x y)))
-
 
