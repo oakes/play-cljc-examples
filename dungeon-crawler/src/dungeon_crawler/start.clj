@@ -1,5 +1,6 @@
 (ns dungeon-crawler.start
   (:require [dungeon-crawler.core :as c]
+            [dungeon-crawler.session :as session]
             [play-cljc.gl.core :as pc])
   (:import  [org.lwjgl.glfw GLFW Callbacks
              GLFWCursorPosCallbackI GLFWKeyCallbackI GLFWMouseButtonCallbackI
@@ -34,7 +35,7 @@
     (MemoryUtil/memFree *fb-height)
     (MemoryUtil/memFree *window-width)
     (MemoryUtil/memFree *window-height)
-    (as-> (c/update-mouse-coords! x y)
+    (as-> (session/update-mouse-coords! x y)
           show-hand?
           (GLFW/glfwSetCursor window
             (GLFW/glfwCreateStandardCursor
@@ -43,8 +44,8 @@
                 GLFW/GLFW_ARROW_CURSOR))))))
 
 (defn on-mouse-click! [window button action mods]
-  (c/update-mouse-button! (when (= action GLFW/GLFW_PRESS)
-                            (mousecode->keyword button))))
+  (session/update-mouse-button! (when (= action GLFW/GLFW_PRESS)
+                                  (mousecode->keyword button))))
 
 (defn keycode->keyword [keycode]
   (condp = keycode
@@ -58,14 +59,14 @@
 (defn on-key! [window keycode scancode action mods]
   (when-let [k (keycode->keyword keycode)]
     (condp = action
-      GLFW/GLFW_PRESS (c/update-pressed-keys! conj k)
-      GLFW/GLFW_RELEASE (c/update-pressed-keys! disj k)
+      GLFW/GLFW_PRESS (session/update-pressed-keys! conj k)
+      GLFW/GLFW_RELEASE (session/update-pressed-keys! disj k)
       nil)))
 
 (defn on-char! [window codepoint])
 
 (defn on-resize! [window width height]
-  (c/update-window-size! width height))
+  (session/update-window-size! width height))
 
 (defprotocol Events
   (on-mouse-move [this xpos ypos])

@@ -3,7 +3,8 @@
   #?(:clj (:import [java.nio ByteBuffer]
                    [org.lwjgl.glfw GLFW]
                    [org.lwjgl.system MemoryUtil]
-                   [org.lwjgl.stb STBImage])))
+                   [org.lwjgl.stb STBImage]
+                   [javax.sound.sampled AudioSystem Clip])))
 
 (defn get-image [fname callback]
   #?(:clj  (let [is (io/input-stream (io/resource (str "public/" fname)))
@@ -48,4 +49,21 @@
              (MemoryUtil/memFree *height)
              n)
      :cljs (-> game :context .-canvas .-clientHeight)))
+
+(def sounds
+  (reduce
+    (fn [m file-name]
+      (assoc m file-name
+        #?(:clj (doto (AudioSystem/getClip)
+                  (.open (AudioSystem/getAudioInputStream (io/resource (str "public/" file-name)))))
+           :cljs (doto (js/Audio.)
+                   (-> .-src (set! file-name))))))
+    {}
+    ["monsterhurt.wav"]))
+
+(defn play-sound! [file-name]
+  #?(:clj (doto (get sounds file-name)
+            (.setFramePosition 0)
+            .start)
+     :cljs (.play (get sounds file-name))))
 
