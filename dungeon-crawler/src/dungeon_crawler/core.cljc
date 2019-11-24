@@ -33,6 +33,7 @@
 (defrecord TiledMap [layers width height entities])
 (defrecord Attack [pursue? source-id target-id])
 (defrecord Animation [entity-id type expire-time])
+(defrecord Direction [entity-id x y])
 
 (defn update-camera [window player]
   (let [{game-width :width game-height :height} window
@@ -176,15 +177,14 @@
                          target [Entity]
                          :when (not= (:char-type target) :player)]
                      (clarax/merge! player {:last-attack (:total-time game)})
-                     (some->> target
-                              (mapv #(vector (move/calc-distance % player) %))
-                              (sort-by first)
-                              (filter #(<= (first %) max-attack-distance))
-                              first
-                              second
-                              :id
-                              (->Attack false (:id player))
-                              clara/insert-unconditional!))
+                     (when-let [target (some->> target
+                                                (mapv #(vector (move/calc-distance % player) %))
+                                                (sort-by first)
+                                                (filter #(<= (first %) max-attack-distance))
+                                                first
+                                                second)]
+                       (clara/insert-unconditional! (->Attack false (:id player) (:id target)))
+                       (clara/insert-unconditional! (->Direction (:id player) (:x target) (:y target)))))
                    :player-attack-with-mouse
                    (let [game Game
                          player Entity
@@ -198,15 +198,15 @@
                          target [Entity]
                          :when (not= (:char-type target) :player)]
                      (clarax/merge! player {:last-attack (:total-time game)})
-                     (some->> target
-                              (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
-                              (sort-by first)
-                              (filter #(<= (first %) max-cursor-distance))
-                              first
-                              second
-                              :id
-                              (->Attack true (:id player))
-                              clara/insert-unconditional!))
+                     (when-let [target (some->> target
+                                                (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
+                                                (sort-by first)
+                                                (filter #(<= (first %) max-cursor-distance))
+                                                first
+                                                second)]
+                       (clara/insert-unconditional! (->Attack true (:id player) (:id target)))
+                       (let [{:keys [x y]} (:world-coords mouse)]
+                         (clara/insert-unconditional! (->Direction (:id player) x y)))))
                    :update-mouse-world-coords
                    (let [window Window
                          mouse Mouse
@@ -225,15 +225,26 @@
                      (cond
                        (<= (move/calc-distance source target)
                            max-attack-distance)
-                       (-> (->Animation (:id source) :attacks (+ (:total-time game) animation-duration))
-                           clara/insert-unconditional!)
+                       (->> (+ (:total-time game) animation-duration)
+                            (->Animation (:id source) :attacks)
+                            clara/insert-unconditional!)
                        (:pursue? attack)
                        (println (:char-type source) "pursues" (:char-type target))))
                    :remove-expired-animations
                    (let [game Game
                          animation Animation
                          :when (<= (:expire-time animation) (:total-time game))]
-                     (clara/retract! animation))}
+                     (clara/retract! animation))
+                   :change-direction
+                   (let [direction Direction
+                         entity Entity
+                         :when (= (:id entity) (:entity-id direction))]
+                     (clara/retract! direction)
+                     (->> (move/get-direction
+                            (- (:x direction) (:x entity))
+                            (- (:y direction) (:y entity)))
+                          (hash-map :direction)
+                          (clarax/merge! entity)))}
                   ->session
                   (clara/insert
                     (->Mouse 0 0 nil nil)
