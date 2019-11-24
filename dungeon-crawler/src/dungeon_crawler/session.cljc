@@ -46,7 +46,7 @@
 (defrecord Mouse [x y world-coords button])
 (defrecord Keys [pressed])
 (defrecord TiledMap [layers width height entities])
-(defrecord Attack [pursue? source-id target-id])
+(defrecord Attack [source-id target-id])
 (defrecord Animation [entity-id type expire-time])
 (defrecord Direction [entity-id x y])
 (defrecord Sound [file-name])
@@ -213,7 +213,7 @@
                                  (filter #(<= (first %) max-attack-distance))
                                  first
                                  second)]
-        (clara/insert-unconditional! (->Attack false (:id player) (:id target)))
+        (clara/insert-unconditional! (->Attack (:id player) (:id target)))
         (clara/insert-unconditional! (->Direction (:id player) (:x target) (:y target)))))
     :player-attack-with-mouse
     (let [game Game
@@ -235,7 +235,7 @@
                                  (filter #(<= (first %) max-cursor-distance))
                                  first
                                  second)]
-        (clara/insert-unconditional! (->Attack true (:id player) (:id target)))
+        (clara/insert-unconditional! (->Attack (:id player) (:id target)))
         (let [{:keys [x y]} (:world-coords mouse)]
           (clara/insert-unconditional! (->Direction (:id player) x y)))))
     :enemy-attack
@@ -251,7 +251,7 @@
                      (<= (move/calc-distance entity player) max-attack-distance)
                      (> (:health player) 0))]
       (clarax/merge! entity {:last-attack (:total-time game)})
-      (clara/insert-unconditional! (->Attack false (:id entity) (:id player))))
+      (clara/insert-unconditional! (->Attack (:id entity) (:id player))))
     :update-mouse-world-coords
     (let [window Window
           mouse Mouse
@@ -267,9 +267,8 @@
           target Entity
           :when (= (:id target) (:target-id attack))]
       (clara/retract! attack)
-      (cond
-        (<= (move/calc-distance source target)
-            max-attack-distance)
+      (when (<= (move/calc-distance source target)
+                max-attack-distance)
         (let [duration (+ (:total-time game) animation-duration)
               sound-file (if (= (:char-type source) :player)
                            "monsterhurt.wav"
@@ -283,9 +282,7 @@
                clara/insert-unconditional!)
           (->> (:damage source)
                (->Damage (:id target))
-               clara/insert-unconditional!))
-        (:pursue? attack)
-        (println (:char-type source) "pursues" (:char-type target))))
+               clara/insert-unconditional!))))
     :damage
     (let [game Game
           damage Damage
