@@ -23,6 +23,7 @@
 (def max-attack-distance 1)
 (def max-cursor-distance 0.5)
 (def min-attack-interval 0.25)
+(def animation-duration 0.5)
 
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
@@ -31,6 +32,7 @@
 (defrecord Keys [pressed])
 (defrecord TiledMap [layers width height entities])
 (defrecord Attack [pursue? source-id target-id])
+(defrecord Animation [entity-id type expire-time])
 
 (defn update-camera [window player]
   (let [{game-width :width game-height :height} window
@@ -211,7 +213,8 @@
                          :when (= (:char-type player) :player)]
                      (clarax/merge! mouse (update-mouse window mouse player)))
                    :attack
-                   (let [attack Attack
+                   (let [game Game
+                         attack Attack
                          source Entity
                          :when (= (:id source) (:source-id attack))
                          target Entity
@@ -219,10 +222,16 @@
                      (cond
                        (<= (move/calc-distance source target)
                            max-attack-distance)
-                       (println (:char-type source) "attacks" (:char-type target))
+                       (-> (->Animation (:id source) :attacks (+ (:total-time game) animation-duration))
+                           clara/insert-unconditional!)
                        (:pursue? attack)
                        (println (:char-type source) "pursues" (:char-type target)))
-                     (clara/retract! attack))}
+                     (clara/retract! attack))
+                   :remove-expired-animations
+                   (let [game Game
+                         animation Animation
+                         :when (<= (:expire-time animation) (:total-time game))]
+                     (clara/retract! animation))}
                   ->session
                   (clara/insert
                     (->Mouse 0 0 nil nil)
