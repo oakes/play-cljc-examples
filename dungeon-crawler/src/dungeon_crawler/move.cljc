@@ -6,8 +6,8 @@
 (def ^:const damping 0.1)
 (def ^:const max-velocity 4)
 (def ^:const max-enemy-velocity (/ max-velocity 2))
-(def ^:const max-movement-per-frame 1)
-(def ^:const min-movement-per-frame -1)
+(def ^:const max-movement-per-frame 0.5)
+(def ^:const min-movement-per-frame -0.5)
 (def ^:const deceleration 0.8)
 (def ^:const animation-secs 0.2)
 (def ^:const directions [:w :nw :n :ne
