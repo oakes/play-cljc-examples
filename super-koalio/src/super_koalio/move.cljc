@@ -5,14 +5,14 @@
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
-(def ^:const damping 0.1)
-(def ^:const max-velocity 16)
-(def ^:const max-jump-velocity (* max-velocity 10))
-(def ^:const max-movement-per-frame 0.5)
-(def ^:const min-movement-per-frame -0.5)
-(def ^:const deceleration 0.8)
-(def ^:const gravity 3)
-(def ^:const animation-secs 0.2)
+(def damping 0.1)
+(def max-velocity 16)
+(def max-jump-velocity (* max-velocity 10))
+(def max-movement-per-frame 0.5)
+(def min-movement-per-frame -0.5)
+(def deceleration 0.8)
+(def gravity 3)
+(def animation-secs 0.2)
 
 (defn decelerate
   [velocity]
