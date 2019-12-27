@@ -12,7 +12,6 @@
 
 (def orig-camera (e/->camera true))
 (def vertical-tiles 7)
-(def max-attack-distance 0.5)
 (def max-cursor-distance 0.5)
 (def animation-duration 0.5)
 (def restart-delay 1)
@@ -210,7 +209,7 @@
       (when-let [target (some->> target
                                  (mapv #(vector (move/calc-distance % player) %))
                                  (sort-by first)
-                                 (filter #(<= (first %) max-attack-distance))
+                                 (filter #(<= (first %) move/max-attack-distance))
                                  first
                                  second)]
         (clara/insert-unconditional! (->Attack (:id player) (:id target)))
@@ -248,7 +247,7 @@
                          (>= (:attack-delay entity))))
           player Entity
           :when (and (= (:char-type player) :player)
-                     (<= (move/calc-distance entity player) max-attack-distance)
+                     (<= (move/calc-distance entity player) move/max-attack-distance)
                      (> (:health player) 0))]
       (clarax/merge! entity {:last-attack (:total-time game)})
       (clara/insert-unconditional! (->Attack (:id entity) (:id player))))
@@ -268,7 +267,7 @@
           :when (= (:id target) (:target-id attack))]
       (clara/retract! attack)
       (when (<= (move/calc-distance source target)
-                max-attack-distance)
+                move/max-attack-distance)
         (let [duration (+ (:total-time game) animation-duration)
               sound-file (if (= (:char-type source) :player)
                            "monsterhurt.wav"

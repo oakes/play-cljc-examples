@@ -14,6 +14,9 @@
                  :e :se :s :sw])
 (def velocities [[-1 0] [-1 -1] [0 -1] [1 -1]
                  [1 0] [1 1] [0 1] [-1 1]])
+(def max-attack-distance 0.5)
+(def min-aggro-distance (- max-attack-distance 0.1))
+(def max-aggro-distance 2)
 
 (defn decelerate
   [velocity]
@@ -63,14 +66,14 @@
   (or (when (> (:health player) 0)
         (let [distance (calc-distance enemy player)]
           (cond
-            (< 0.5 distance 2)
+            (< min-aggro-distance distance max-aggro-distance)
             [(cond-> max-enemy-velocity
                      (< (:x player) (:x enemy))
                      (* -1))
              (cond-> max-enemy-velocity
                      (< (:y player) (:y enemy))
                      (* -1))]
-            (<= distance 0.5)
+            (<= distance min-aggro-distance)
             [0 0])))
       [(if (= 0 x-velocity)
          (-> (rand-int 3)
