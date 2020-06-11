@@ -48,7 +48,6 @@
 (defrecord Attack [source-id target-id])
 (defrecord Animation [entity-id type expire-time])
 (defrecord Direction [entity-id x y])
-(defrecord Sound [file-name])
 (defrecord Damage [entity-id damage])
 (defrecord Restart [restart-time])
 
@@ -272,7 +271,7 @@
               sound-file (if (= (:char-type source) :player)
                            "monsterhurt.wav"
                            "playerhurt.wav")]
-          (clara/insert-unconditional! (->Sound sound-file))
+          (utils/play-sound! sound-file)
           (->> duration
                (->Animation (:id source) :attacks)
                clara/insert-unconditional!)
@@ -291,7 +290,7 @@
       (let [health (- (:health entity) (:damage damage))]
         (clarax/merge! entity {:health health :animate? true})
         (when (<= health 0)
-          (clara/insert-unconditional! (->Sound "death.wav"))
+          (utils/play-sound! "death.wav")
           (when (= (:char-type entity) :player)
             (clara/insert-unconditional! (->Restart (+ (:total-time game) restart-delay)))))))
     :remove-expired-animations
@@ -308,11 +307,7 @@
              (- (:x direction) (:x entity))
              (- (:y direction) (:y entity)))
            (hash-map :direction)
-           (clarax/merge! entity)))
-    :play-sound
-    (let [sound Sound]
-      (clara/retract! sound)
-      (utils/play-sound! (:file-name sound)))})
+           (clarax/merge! entity)))})
 
 #?(:clj (defmacro ->session-wrapper []
           (list '->session (merge queries rules))))
