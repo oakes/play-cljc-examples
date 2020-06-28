@@ -5,6 +5,7 @@
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
             [clara.rules :as clara]
+            [clara.rules.accumulators :as acc]
             [clarax.rules :as clarax]
             #?(:clj  [clarax.macros-java :refer [->session]]
                :cljs [clarax.macros-js :refer-macros [->session]]))
@@ -116,7 +117,8 @@
         entity))
     :get-enemies
     (fn []
-      (let [entity [Entity]
+      (let [entity Entity
+            :accumulator (acc/all)
             :when (not= (:char-type entity) :player)]
         entity))
     :get-tiled-map
@@ -127,7 +129,8 @@
     (fn []
       (let [mouse Mouse
             :when (not= nil (:world-coords mouse))
-            target [Entity]
+            target Entity
+            :accumulator (acc/all)
             :when (not= (:char-type target) :player)]
         (some->> target
                  (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
@@ -180,7 +183,8 @@
     (let [game Game
           entity Entity
           :when (= true (:animate? entity))
-          animation [Animation]
+          animation Animation
+          :accumulator (acc/all)
           :when (= (:id entity) (:entity-id animation))]
       (->> (move/animate entity game animation)
            (merge {:animate? false})
@@ -201,7 +205,8 @@
                          (>= (:attack-delay player))))
           keys Keys
           :when (contains? (:pressed keys) :space)
-          target [Entity]
+          target Entity
+          :accumulator (acc/all)
           :when (and (not= (:char-type target) :player)
                      (> (:health target) 0))]
       (clarax/merge! player {:last-attack (:total-time game)})
@@ -223,7 +228,8 @@
           mouse Mouse
           :when (and (= (:button mouse) :right)
                      (not= nil (:world-coords mouse)))
-          target [Entity]
+          target Entity
+          :accumulator (acc/all)
           :when (and (not= (:char-type target) :player)
                      (> (:health target) 0))]
       (clarax/merge! player {:last-attack (:total-time game)})
