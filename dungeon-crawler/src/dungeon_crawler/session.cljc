@@ -35,14 +35,14 @@
                    y-change
                    x-velocity
                    y-velocity
-                   game
+                   game-anchor
                    last-attack
                    health
                    damage
                    attack-delay])
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
-(defrecord Camera [camera window player min-y max-y])
+(defrecord Camera [camera window-anchor player-anchor min-y max-y])
 (defrecord Mouse [x y world-coords button])
 (defrecord Keys [pressed])
 (defrecord TiledMap [layers width height entities])
@@ -61,9 +61,9 @@
         offset-y (/ game-height 2 scaled-tile-size)
         min-y (- y offset-y 1)
         max-y (+ y offset-y)]
-    {:window window
-     :camera (t/translate orig-camera (- x offset-x) (- y offset-y))
-     :player player
+    {:camera (t/translate orig-camera (- x offset-x) (- y offset-y))
+     :window-anchor window
+     :player-anchor player
      :min-y min-y
      :max-y max-y}))
 
@@ -151,24 +151,24 @@
           player Entity
           :when (= (:char-type player) :player)
           entity Entity
-          :when (and (not= (:game entity) game)
+          :when (and (not= (:game-anchor entity) game)
                      (not= (:char-type entity) :player)
                      (> (:health entity) 0))]
       (clarax/merge! entity (-> (move/get-enemy-velocity entity player)
                                 (move/move entity game)
-                                (assoc :game game :animate? true))))
+                                (assoc :game-anchor game :animate? true))))
     :move-player
     (let [game Game
           window Window
           keys Keys
           mouse Mouse
           player Entity
-          :when (and (not= (:game player) game)
+          :when (and (not= (:game-anchor player) game)
                      (= (:char-type player) :player)
                      (> (:health player) 0))]
       (clarax/merge! player (-> (move/get-player-velocity window (:pressed keys) mouse player)
                                 (move/move player game)
-                                (assoc :game game :animate? true))))
+                                (assoc :game-anchor game :animate? true))))
     :update-camera
     (let [window Window
           :when (or (pos? (:width window))
@@ -176,8 +176,8 @@
           player Entity
           :when (= (:char-type player) :player)
           camera Camera
-          :when (or (not= (:window camera) window)
-                    (not= (:player camera) player))]
+          :when (or (not= (:window-anchor camera) window)
+                    (not= (:player-anchor camera) player))]
       (clarax/merge! camera (update-camera window player)))
     :animate
     (let [game Game
