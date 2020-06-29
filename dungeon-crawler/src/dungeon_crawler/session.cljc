@@ -318,30 +318,7 @@
 #?(:clj (defmacro ->session-wrapper []
           (list '->session (merge queries rules))))
 
+(def initial-session (->session-wrapper))
+
 (def *session (atom nil))
-
-(defn restart! []
-  (reset! *session
-    (-> (->session-wrapper)
-        (clara/insert
-          (->Mouse 0 0 nil nil)
-          (->Keys #{}))
-        clara/fire-rules)))
-
-(restart!)
-
-;; this is a perf optimization.
-;; while we could call clara/query with these keywords directly,
-;; saving them to global vars will avoid the hash lookup inside the game loop.
-(let [query-fns (clarax/query-fns @*session)]
-  (def get-game (:get-game query-fns))
-  (def should-restart? (:should-restart? query-fns))
-  (def get-player (:get-player query-fns))
-  (def get-enemies (:get-enemies query-fns))
-  (def get-tiled-map (:get-tiled-map query-fns))
-  (def get-window (:get-window query-fns))
-  (def get-camera (:get-camera query-fns))
-  (def get-keys (:get-keys query-fns))
-  (def get-mouse (:get-mouse query-fns))
-  (def get-enemy-under-cursor (:get-enemy-under-cursor query-fns)))
 

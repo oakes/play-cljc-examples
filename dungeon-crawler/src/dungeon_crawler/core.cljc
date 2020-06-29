@@ -16,7 +16,7 @@
   (swap! session/*session
     (fn [session]
       (as-> session $
-            (session/get-keys $)
+            (clara/query $ :get-keys)
             (clarax/merge session $ (update $ :pressed f k))
             (clara/fire-rules $)))))
 
@@ -24,7 +24,7 @@
   (swap! session/*session
     (fn [session]
       (as-> session $
-            (session/get-mouse $)
+            (clara/query $ :get-mouse)
             (clarax/merge session $ {:button button})
             (clara/fire-rules $)))))
 
@@ -32,22 +32,36 @@
   (-> (swap! session/*session
         (fn [session]
           (as-> session $
-                (session/get-mouse $)
+                (clara/query $ :get-mouse)
                 (clarax/merge session $ {:x x :y y :world-coords nil})
                 (clara/fire-rules $))))
-      session/get-enemy-under-cursor))
+      (clara/query :get-enemy-under-cursor)))
 
 (defn update-window-size! [width height]
   (swap! session/*session
     (fn [session]
       (as-> session $
-            (session/get-window $)
+            (clara/query $ :get-window)
             (clarax/merge session $ {:width width :height height})
             (clara/fire-rules $)))))
 
 (def parsed-tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 
-(defn load-entities [game]
+(defn init [game]
+  ;; allow transparency in images
+  (gl game enable (gl game BLEND))
+  (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
+  ;; initialize session
+  (reset! session/*session
+    (-> session/initial-session
+        (clara/insert
+          (session/map->Game game)
+          (session/->Window (utils/get-width game) (utils/get-height game))
+          (session/->Camera session/orig-camera nil nil 0 0)
+          (session/->Mouse 0 0 nil nil)
+          (session/->Keys #{}))
+        clara/fire-rules))
+  ;; load entities
   (doseq [{:keys [path instances] :as spawn-data} entities/spawn-data]
     (utils/get-image path
       (fn [image]
@@ -58,30 +72,17 @@
                    (fn [session instance]
                      (clara/insert session (session/map->Entity (entities/->entity game spawn-data image instance))))
                    session)
-                 clara/fire-rules)))))))
-
-(defn init [game]
-  ;; allow transparency in images
-  (gl game enable (gl game BLEND))
-  (gl game blendFunc (gl game SRC_ALPHA) (gl game ONE_MINUS_SRC_ALPHA))
-  ;; insert game record
-  (swap! session/*session
-    (fn [session]
-      (-> session
-          (clara/insert
-            (session/map->Game game)
-            (session/->Window (utils/get-width game) (utils/get-height game))
-            (session/->Camera session/orig-camera nil nil 0 0))
-          clara/fire-rules)))
-  ;; load the tiled map
+                 clara/fire-rules))))))
+  ;; load tiled map
   (tiles/load-tiled-map game parsed-tiled-map
     (fn [tiled-map]
       (swap! session/*session
         (fn [session]
           (-> session
               (clara/insert (session/map->TiledMap tiled-map))
-              clara/fire-rules)))
-      (load-entities game))))
+              clara/fire-rules)))))
+  ;; return session
+  @session/*session)
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
@@ -89,15 +90,18 @@
 
 (defn tick [game]
   (let [session @session/*session
-        session (if (session/should-restart? session)
-                  (session/restart!)
+        session (if (or ;; the session ns was reloaded
+                        (nil? session)
+                        ;; the player died
+                        (clara/query session :should-restart?))
+                  (init game)
                   session)
-        player (session/get-player session)
-        enemies (session/get-enemies session)
-        tiled-map (session/get-tiled-map session)
-        {game-width :width game-height :height :as window} (session/get-window session)
-        {:keys [camera min-y max-y]} (session/get-camera session)]
-    (when (and window (pos? game-width) (pos? game-height))
+        player (clara/query session :get-player)
+        enemies (clara/query session :get-enemies)
+        tiled-map (clara/query session :get-tiled-map)
+        {game-width :width game-height :height :as window} (clara/query session :get-window)
+        {:keys [camera min-y max-y]} (clara/query session :get-camera)]
+    (when (and (pos? game-width) (pos? game-height))
       (let [scaled-tile-size (/ game-height session/vertical-tiles)]
         ;; render the background
         (c/render game (update screen-entity :viewport
@@ -133,15 +137,15 @@
                               vec)]
             (run! (fn [[y-pos entity]]
                     (c/render game entity))
-                  entities)))))
-    ;; insert/update the game record
-    (if-let [game' (session/get-game session)]
-      (swap! session/*session
-        (fn [session]
-          (-> session
-              (clarax/merge game' game)
-              clara/fire-rules)))
-      (init game)))
+                  entities))))))
+  ;; update the game record
+  (swap! session/*session
+    (fn [session]
+      (when session
+        (as-> session $
+              (clara/query $ :get-game)
+              (clarax/merge session $ game)
+              (clara/fire-rules $)))))
   ;; return the game map
   game)
 
