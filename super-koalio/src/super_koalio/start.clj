@@ -149,8 +149,8 @@
   (let [handle (:handle window)
         game (assoc game :delta-time 0 :total-time (GLFW/glfwGetTime))]
     (GLFW/glfwShowWindow handle)
-    (listen-for-events window)
     (c/init game)
+    (listen-for-events window)
     (play-music!)
     (loop [game game]
       (when-not (GLFW/glfwWindowShouldClose handle)
