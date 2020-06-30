@@ -320,5 +320,10 @@
 
 (def initial-session (->session-wrapper))
 
-(def *session (atom nil))
+(defonce *session (atom nil))
+(defonce *reload? (atom false))
+
+;; when this ns is reloaded, reload the session
+(when @*session
+  (reset! *reload? true))
 

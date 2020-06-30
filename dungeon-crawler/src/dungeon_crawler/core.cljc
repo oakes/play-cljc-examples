@@ -81,8 +81,8 @@
           (-> session
               (clara/insert (session/map->TiledMap tiled-map))
               clara/fire-rules)))))
-  ;; return session
-  @session/*session)
+  ;; return game map
+  game)
 
 (def screen-entity
   {:viewport {:x 0 :y 0 :width 0 :height 0}
@@ -91,10 +91,13 @@
 (defn tick [game]
   (let [session @session/*session
         session (if (or ;; the session ns was reloaded
-                        (nil? session)
+                        @session/*reload?
                         ;; the player died
                         (clara/query session :should-restart?))
-                  (init game)
+                  (do
+                    (reset! session/*reload? false)
+                    (init game)
+                    @session/*session)
                   session)
         player (clara/query session :get-player)
         enemies (clara/query session :get-enemies)
