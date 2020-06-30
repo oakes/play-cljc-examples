@@ -29,7 +29,7 @@
                        :player-image-key :jump
                        :tiled-map nil
                        :tiled-map-entity nil
-                       :camera (e/->camera true)}))
+                       :camera (e/->camera)}))
 
 (def tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 
@@ -92,7 +92,7 @@
           (c/render game (-> tiled-map-entity
                              (t/project game-width game-height)
                              (t/scale scaled-tile-size scaled-tile-size)
-                             (t/camera camera))))
+                             (t/invert camera))))
         ;; get the current player image to display
         (when-let [player (get player-images player-image-key)]
           ;; render the player
@@ -100,7 +100,7 @@
             (-> player
                 (t/project game-width game-height)
                 (t/scale scaled-tile-size scaled-tile-size)
-                (t/camera camera)
+                (t/invert camera)
                 (t/translate (cond-> player-x
                                      (= direction :left)
                                      (+ player-width))

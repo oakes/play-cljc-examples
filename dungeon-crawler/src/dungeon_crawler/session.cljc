@@ -11,7 +11,7 @@
                :cljs [clarax.macros-js :refer-macros [->session]]))
   #?(:cljs (:require-macros [dungeon-crawler.session :refer [->session-wrapper]])))
 
-(def orig-camera (e/->camera true))
+(def orig-camera (e/->camera))
 (def vertical-tiles 7)
 (def max-cursor-distance 0.5)
 (def animation-duration 0.5)

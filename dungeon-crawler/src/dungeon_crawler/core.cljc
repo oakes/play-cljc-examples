@@ -115,11 +115,11 @@
                                                 (-> entity
                                                     (t/project game-width game-height)
                                                     (t/scale scaled-tile-size scaled-tile-size)
-                                                    (t/camera camera))))))
+                                                    (t/invert camera))))))
                               (cons [y (-> current-image
                                            (t/project game-width game-height)
                                            (t/scale scaled-tile-size scaled-tile-size)
-                                           (t/camera camera)
+                                           (t/invert camera)
                                            (t/translate x y)
                                            (t/scale width height))])
                               (concat (for [{:keys [x y width height current-image]} enemies
@@ -127,7 +127,7 @@
                                         [y (-> current-image
                                                (t/project game-width game-height)
                                                (t/scale scaled-tile-size scaled-tile-size)
-                                               (t/camera camera)
+                                               (t/invert camera)
                                                (t/translate x y)
                                                (t/scale width height))]))
                               (sort-by first <)
