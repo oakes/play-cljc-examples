@@ -89,16 +89,10 @@
    :clear {:color [(/ 150 255) (/ 150 255) (/ 150 255) 1] :depth 1}})
 
 (defn tick [game]
+  (when @session/*reload?
+    (reset! session/*reload? false)
+    (init game))
   (let [session @session/*session
-        session (if (or ;; the session ns was reloaded
-                        @session/*reload?
-                        ;; the player died
-                        (clara/query session :should-restart?))
-                  (do
-                    (reset! session/*reload? false)
-                    (init game)
-                    @session/*session)
-                  session)
         player (clara/query session :get-player)
         enemies (clara/query session :get-enemies)
         tiled-map (clara/query session :get-tiled-map)

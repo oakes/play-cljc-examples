@@ -15,7 +15,6 @@
 (def vertical-tiles 7)
 (def max-cursor-distance 0.5)
 (def animation-duration 0.5)
-(def restart-delay 1)
 
 (defrecord Entity [id
                    char-type
@@ -50,7 +49,6 @@
 (defrecord Animation [entity-id type expire-time])
 (defrecord Direction [entity-id x y])
 (defrecord Damage [entity-id damage])
-(defrecord Restart [restart-time])
 
 (defn update-camera [window player]
   (let [{game-width :width game-height :height} window
@@ -88,6 +86,8 @@
                (+ (:y player))
                (- (:height player)))]
    {:world-coords {:x wx :y wy}}))
+
+(declare restart!)
 
 (def queries
   '{:get-game
@@ -137,13 +137,7 @@
                  (sort-by first)
                  (filter #(<= (first %) max-cursor-distance))
                  first
-                 second)))
-    :should-restart?
-    (fn []
-      (let [game Game
-            restart Restart]
-        (some-> (:restart-time restart)
-                (<= (:total-time game)))))})
+                 second)))})
 
 (def rules
   '{:move-enemy
@@ -288,8 +282,7 @@
                (->Damage (:id target))
                clara/insert-unconditional!))))
     :damage
-    (let [game Game
-          damage Damage
+    (let [damage Damage
           entity Entity
           :when (= (:id entity) (:entity-id damage))]
       (clara/retract! damage)
@@ -298,7 +291,7 @@
         (when (<= health 0)
           (utils/play-sound! "death.wav")
           (when (= (:char-type entity) :player)
-            (clara/insert-unconditional! (->Restart (+ (:total-time game) restart-delay)))))))
+            (restart!)))))
     :remove-expired-animations
     (let [game Game
           animation Animation
@@ -326,4 +319,12 @@
 ;; when this ns is reloaded, reload the session
 (when @*session
   (reset! *reload? true))
+
+(def restart-delay 1000)
+
+(defn restart! []
+  #?(:clj (future
+            (Thread/sleep restart-delay)
+            (reset! *reload? true))
+     :cljs (js/setTimeout #(reset! *reload? true) restart-delay)))
 
