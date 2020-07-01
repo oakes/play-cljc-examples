@@ -114,7 +114,7 @@
 
 (defn move
   [[x-velocity y-velocity]
-   {:keys [type x y] :as character}
+   {:keys [x y] :as character}
    {:keys [delta-time] :as game}]
   (let [x-change (-> (* x-velocity delta-time)
                      (max min-movement-per-frame)
@@ -141,8 +141,8 @@
    animations]
   (or (when (<= health 0)
         {:current-image (get-in character [:deads direction])})
-      (when-let [{:keys [type]} (first animations)]
-        {:current-image (get (get character type) direction)})
+      (when-let [{:keys [kind]} (first animations)]
+        {:current-image (get (get character kind) direction)})
       (when-let [direction (get-direction x-velocity y-velocity)]
         {:current-image
          (when (or (not= x-velocity 0)

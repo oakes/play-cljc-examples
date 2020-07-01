@@ -19,21 +19,21 @@
 (defonce *entity-cache (atom {}))
 
 (def spawn-data
- [{:attrs {:char-type :player
+ [{:attrs {:kind :player
            :health 20
            :damage 4
            :attack-delay 0.25}
    :path "characters/male_light.png"
    :mask-size 128
    :instances [player-spawn-point]}
-  {:attrs {:char-type :ogre
+  {:attrs {:kind :ogre
            :health 8
            :damage 2
            :attack-delay 1}
    :path "characters/ogre.png"
    :mask-size 256
    :instances (->> spawn-points shuffle (take 5))}
-  {:attrs {:char-type :elemental
+  {:attrs {:kind :elemental
            :health 6
            :damage 1
            :attack-delay 0.75}
@@ -80,11 +80,11 @@
        :last-attack 0})))
 
 (defn ->entity [game {:keys [attrs mask-size]} {:keys [data width height]} {:keys [x y]}]
-  (let [{:keys [char-type]} attrs]
-    (-> (or (char-type @*entity-cache)
+  (let [{:keys [kind]} attrs]
+    (-> (or (kind @*entity-cache)
             (->> (e/->image-entity game data width height)
                  (c/compile game)
-                 (swap! *entity-cache assoc char-type)
-                 char-type))
+                 (swap! *entity-cache assoc kind)
+                 kind))
         (->entity' attrs mask-size x y))))
 
