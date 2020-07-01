@@ -70,7 +70,10 @@
             (->> instances
                  (reduce
                    (fn [session instance]
-                     (clara/insert session (session/map->Entity (entities/->entity game spawn-data image instance))))
+                     (let [e (entities/->entity game spawn-data image instance)]
+                       (clara/insert session
+                         (session/map->Entity e)
+                         (session/->Direction (:id e) (:direction e)))))
                    session)
                  clara/fire-rules))))))
   ;; load tiled map

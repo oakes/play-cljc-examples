@@ -23,7 +23,6 @@
                    specials
                    hits
                    deads
-                   direction
                    animate?
                    current-image
                    width
@@ -39,6 +38,8 @@
                    health
                    damage
                    attack-delay])
+(defrecord Direction [id value])
+
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
 (defrecord Camera [camera window-anchor player-anchor min-y max-y])
@@ -47,7 +48,6 @@
 (defrecord TiledMap [layers width height entities])
 (defrecord Attack [source-id target-id])
 (defrecord Animation [entity-id type expire-time])
-(defrecord Direction [entity-id x y])
 (defrecord Damage [entity-id damage])
 
 (defn update-camera [window player]
@@ -113,7 +113,9 @@
     :get-player
     (fn []
       (let [entity Entity
-            :when (= (:char-type entity) :player)]
+            :when (= (:char-type entity) :player)
+            direction Direction
+            :when (= (:id direction) (:id entity))]
         entity))
     :get-enemies
     (fn []
@@ -177,12 +179,17 @@
     (let [game Game
           entity Entity
           :when (= true (:animate? entity))
+          direction Direction
+          :when (= (:id entity) (:id direction))
           animation Animation
           :accumulator (acc/all)
           :when (= (:id entity) (:entity-id animation))]
-      (->> (move/animate entity game animation)
-           (merge {:animate? false})
-           (clarax/merge! entity)))
+      (let [new-entity (->> (move/animate entity (:value direction) game animation)
+                            (merge {:animate? false}))]
+        (clarax/merge! entity new-entity)
+        (some->> (:direction new-entity)
+                 (hash-map :value)
+                 (clarax/merge! direction))))
     :dont-overlap-tile
     (let [tiled-map TiledMap
           entity Entity
@@ -197,6 +204,8 @@
                      (-> (:total-time game)
                          (- (:last-attack player))
                          (>= (:attack-delay player))))
+          direction Direction
+          :when (= (:id direction) (:id player))
           keys Keys
           :when (contains? (:pressed keys) :space)
           target Entity
@@ -211,7 +220,11 @@
                                  first
                                  second)]
         (clara/insert-unconditional! (->Attack (:id player) (:id target)))
-        (clara/insert-unconditional! (->Direction (:id player) (:x target) (:y target)))))
+        (some->> (move/get-direction
+                   (- (:x target) (:x player))
+                   (- (:y target) (:y player)))
+                 (hash-map :value)
+                 (clarax/merge! direction))))
     :player-attack-with-mouse
     (let [game Game
           player Entity
@@ -219,6 +232,8 @@
                      (-> (:total-time game)
                          (- (:last-attack player))
                          (>= (:attack-delay player))))
+          direction Direction
+          :when (= (:id direction) (:id player))
           mouse Mouse
           :when (and (= (:button mouse) :right)
                      (not= nil (:world-coords mouse)))
@@ -235,7 +250,11 @@
                                  second)]
         (clara/insert-unconditional! (->Attack (:id player) (:id target)))
         (let [{:keys [x y]} (:world-coords mouse)]
-          (clara/insert-unconditional! (->Direction (:id player) x y)))))
+          (some->> (move/get-direction
+                     (- x (:x player))
+                     (- y (:y player)))
+                   (hash-map :value)
+                   (clarax/merge! direction)))))
     :enemy-attack
     (let [game Game
           entity Entity
@@ -296,17 +315,7 @@
     (let [game Game
           animation Animation
           :when (<= (:expire-time animation) (:total-time game))]
-      (clara/retract! animation))
-    :change-direction
-    (let [direction Direction
-          entity Entity
-          :when (= (:id entity) (:entity-id direction))]
-      (clara/retract! direction)
-      (->> (move/get-direction
-             (- (:x direction) (:x entity))
-             (- (:y direction) (:y entity)))
-           (hash-map :direction)
-           (clarax/merge! entity)))})
+      (clara/retract! animation))})
 
 #?(:clj (defmacro ->session-wrapper []
           (list '->session (merge queries rules))))

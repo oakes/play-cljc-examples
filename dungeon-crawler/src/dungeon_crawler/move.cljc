@@ -134,8 +134,9 @@
       character)))
 
 (defn animate
-  [{:keys [x-velocity y-velocity moves current-image direction health]
+  [{:keys [x-velocity y-velocity moves current-image health]
     :as character}
+   direction
    {:keys [total-time]}
    animations]
   (or (when (<= health 0)
