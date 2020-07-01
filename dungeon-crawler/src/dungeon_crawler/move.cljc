@@ -134,7 +134,7 @@
       character)))
 
 (defn animate
-  [{:keys [x-velocity y-velocity moves current-image health]
+  [{:keys [x-velocity y-velocity moves health]
     :as character}
    direction
    {:keys [total-time]}
@@ -145,12 +145,11 @@
         {:current-image (get (get character type) direction)})
       (when-let [direction (get-direction x-velocity y-velocity)]
         {:current-image
-         (if (or (not= x-velocity 0)
-                 (not= y-velocity 0))
+         (when (or (not= x-velocity 0)
+                   (not= y-velocity 0))
            (let [images (direction moves)
                  cycle-time (mod total-time (* animation-secs (count images)))]
-             (nth images (int (/ cycle-time animation-secs))))
-           current-image)
+             (nth images (int (/ cycle-time animation-secs)))))
          :direction direction})
       {:current-image (get-in moves [direction 0])}))
 

@@ -190,7 +190,9 @@
           :accumulator (acc/all)
           :when (= (:id entity) (:entity-id animation))]
       (let [ret (move/animate entity (:value direction) game animation)]
-        (clarax/merge! current-image {:value (:current-image ret)})
+        (some->> (:current-image ret)
+                 (hash-map :value)
+                 (clarax/merge! current-image))
         (some->> (:direction ret)
                  (hash-map :value)
                  (clarax/merge! direction))))
