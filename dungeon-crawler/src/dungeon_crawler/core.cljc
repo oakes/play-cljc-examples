@@ -74,7 +74,8 @@
                        (clara/insert session
                          (session/map->Entity e)
                          (session/->Direction (:id e) (:direction e))
-                         (session/->CurrentImage (:id e) (:current-image e)))))
+                         (session/->CurrentImage (:id e) (:current-image e))
+                         (session/->DistanceFromCursor (:id e) 0))))
                    session)
                  clara/fire-rules))))))
   ;; load tiled map

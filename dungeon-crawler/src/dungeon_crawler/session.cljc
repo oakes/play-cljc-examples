@@ -38,6 +38,7 @@
                    attack-delay])
 (defrecord Direction [id value]) ;; :n, :s, ...
 (defrecord CurrentImage [id value]) ;; an image entity
+(defrecord DistanceFromCursor [id value]) ;; how far is this entity from the cursor
 
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
@@ -133,17 +134,12 @@
         tiled-map))
     :get-enemy-under-cursor
     (fn []
-      (let [mouse Mouse
-            :when (not= nil (:world-coords mouse))
-            target Entity
-            :accumulator (acc/all)
-            :when (not= (:char-type target) :player)]
-        (some->> target
-                 (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
-                 (sort-by first)
-                 (filter #(<= (first %) max-cursor-distance))
-                 first
-                 second)))})
+      (let [target Entity
+            :when (not= (:char-type target) :player)
+            distance DistanceFromCursor
+            :accumulator (acc/min :value :returns-fact true)
+            :when (<= (:value distance) max-cursor-distance)]
+        target))})
 
 (def rules
   '{:move-enemy
@@ -169,6 +165,13 @@
       (clarax/merge! player (-> (move/get-player-velocity window (:pressed keys) mouse player)
                                 (move/move player game)
                                 (assoc :game-anchor game))))
+    :update-distance-from-cursor
+    (let [mouse Mouse
+          :when (not= nil (:world-coords mouse))
+          entity Entity
+          distance DistanceFromCursor
+          :when (= (:id entity) (:id distance))]
+      (clarax/merge! distance {:value (move/calc-distance entity (:world-coords mouse))}))
     :update-camera
     (let [window Window
           :when (or (pos? (:width window))
