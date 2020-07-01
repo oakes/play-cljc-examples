@@ -267,18 +267,18 @@
                  (clarax/merge! direction))))
     :enemy-attack
     (let [game Game
-          entity Entity
-          :when (and (not= (:char-type entity) :player)
-                     (> (:health entity) 0)
+          enemy Entity
+          :when (and (not= (:char-type enemy) :player)
                      (-> (:total-time game)
-                         (- (:last-attack entity))
-                         (>= (:attack-delay entity))))
+                         (- (:last-attack enemy))
+                         (>= (:attack-delay enemy))))
+          distance DistanceFromPlayer
+          :when (and (= (:id enemy) (:id distance))
+                     (<= (:value distance) move/max-attack-distance))
           player Entity
-          :when (and (= (:char-type player) :player)
-                     (<= (move/calc-distance entity player) move/max-attack-distance)
-                     (> (:health player) 0))]
-      (clarax/merge! entity {:last-attack (:total-time game)})
-      (clara/insert-unconditional! (->Attack (:id entity) (:id player))))
+          :when (= (:char-type player) :player)]
+      (clarax/merge! enemy {:last-attack (:total-time game)})
+      (clara/insert-unconditional! (->Attack (:id enemy) (:id player))))
     :update-mouse-world-coords
     (let [window Window
           mouse Mouse
