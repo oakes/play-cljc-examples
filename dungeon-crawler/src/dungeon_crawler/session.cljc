@@ -23,8 +23,6 @@
                    specials
                    hits
                    deads
-                   animate?
-                   current-image
                    width
                    height
                    x
@@ -38,7 +36,8 @@
                    health
                    damage
                    attack-delay])
-(defrecord Direction [id value])
+(defrecord Direction [id value]) ;; :n, :s, ...
+(defrecord CurrentImage [id value]) ;; an image entity
 
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
@@ -123,6 +122,11 @@
             :accumulator (acc/all)
             :when (not= (:char-type entity) :player)]
         entity))
+    :get-current-image
+    (fn [?id]
+      (let [current-image CurrentImage
+            :when (= ?id (:id current-image))]
+        (:value current-image)))
     :get-tiled-map
     (fn []
       (let [tiled-map TiledMap]
@@ -152,7 +156,7 @@
                      (> (:health entity) 0))]
       (clarax/merge! entity (-> (move/get-enemy-velocity entity player)
                                 (move/move entity game)
-                                (assoc :game-anchor game :animate? true))))
+                                (assoc :game-anchor game))))
     :move-player
     (let [game Game
           window Window
@@ -164,7 +168,7 @@
                      (> (:health player) 0))]
       (clarax/merge! player (-> (move/get-player-velocity window (:pressed keys) mouse player)
                                 (move/move player game)
-                                (assoc :game-anchor game :animate? true))))
+                                (assoc :game-anchor game))))
     :update-camera
     (let [window Window
           :when (or (pos? (:width window))
@@ -178,16 +182,16 @@
     :animate
     (let [game Game
           entity Entity
-          :when (= true (:animate? entity))
           direction Direction
           :when (= (:id entity) (:id direction))
+          current-image CurrentImage
+          :when (= (:id current-image) (:id entity))
           animation Animation
           :accumulator (acc/all)
           :when (= (:id entity) (:entity-id animation))]
-      (let [new-entity (->> (move/animate entity (:value direction) game animation)
-                            (merge {:animate? false}))]
-        (clarax/merge! entity new-entity)
-        (some->> (:direction new-entity)
+      (let [ret (move/animate entity (:value direction) game animation)]
+        (clarax/merge! current-image {:value (:current-image ret)})
+        (some->> (:direction ret)
                  (hash-map :value)
                  (clarax/merge! direction))))
     :dont-overlap-tile
@@ -306,7 +310,7 @@
           :when (= (:id entity) (:entity-id damage))]
       (clara/retract! damage)
       (let [health (- (:health entity) (:damage damage))]
-        (clarax/merge! entity {:health health :animate? true})
+        (clarax/merge! entity {:health health})
         (when (<= health 0)
           (utils/play-sound! "death.wav")
           (when (= (:char-type entity) :player)
