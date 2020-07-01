@@ -62,8 +62,8 @@
   (math abs (math sqrt (+ (math pow (- x1 x2) 2)
                           (math pow (- y1 y2) 2)))))
 
-(defn get-enemy-velocity [{:keys [x-velocity y-velocity] :as enemy} player]
-  (or (when (> (:health player) 0)
+(defn get-enemy-velocity [{:keys [x-velocity y-velocity] :as enemy} player player-health]
+  (or (when (> player-health 0)
         (let [distance (calc-distance enemy player)]
           (cond
             (< min-aggro-distance distance max-aggro-distance)
@@ -134,8 +134,8 @@
       character)))
 
 (defn animate
-  [{:keys [x-velocity y-velocity moves health]
-    :as character}
+  [{:keys [x-velocity y-velocity moves] :as character}
+   health
    direction
    {:keys [total-time]}
    animations]

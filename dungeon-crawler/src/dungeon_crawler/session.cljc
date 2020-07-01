@@ -33,13 +33,13 @@
                    y-velocity
                    game-anchor
                    last-attack
-                   health
                    damage
                    attack-delay])
 (defrecord Direction [id value]) ;; :n, :s, ...
 (defrecord CurrentImage [id value]) ;; an image entity
 (defrecord DistanceFromCursor [id value]) ;; how far is this entity from the cursor
 (defrecord DistanceFromPlayer [id value]) ;; how far is this entity from the player
+(defrecord Health [id value]) ;; number
 
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
@@ -49,7 +49,6 @@
 (defrecord TiledMap [layers width height entities])
 (defrecord Attack [source-id target-id])
 (defrecord Animation [entity-id type expire-time])
-(defrecord Damage [entity-id damage])
 
 (defn update-camera [window player]
   (let [{game-width :width game-height :height} window
@@ -147,13 +146,17 @@
     (let [game Game
           player Entity
           :when (= (:char-type player) :player)
-          entity Entity
-          :when (and (not= (:game-anchor entity) game)
-                     (not= (:char-type entity) :player)
-                     (> (:health entity) 0))]
-      (clarax/merge! entity (-> (move/get-enemy-velocity entity player)
-                                (move/move entity game)
-                                (assoc :game-anchor game))))
+          player-health Health
+          :when (= (:id player) (:id player-health))
+          enemy Entity
+          :when (and (not= (:game-anchor enemy) game)
+                     (not= (:char-type enemy) :player))
+          enemy-health Health
+          :when (and (= (:id enemy) (:id enemy-health))
+                     (> (:value enemy-health) 0))]
+      (clarax/merge! enemy (-> (move/get-enemy-velocity enemy player (:value player-health))
+                               (move/move enemy game)
+                               (assoc :game-anchor game))))
     :move-player
     (let [game Game
           window Window
@@ -161,8 +164,10 @@
           mouse Mouse
           player Entity
           :when (and (not= (:game-anchor player) game)
-                     (= (:char-type player) :player)
-                     (> (:health player) 0))]
+                     (= (:char-type player) :player))
+          player-health Health
+          :when (and (= (:id player) (:id player-health))
+                     (> (:value player-health) 0))]
       (clarax/merge! player (-> (move/get-player-velocity window (:pressed keys) mouse player)
                                 (move/move player game)
                                 (assoc :game-anchor game))))
@@ -196,12 +201,14 @@
           entity Entity
           direction Direction
           :when (= (:id entity) (:id direction))
+          health Health
+          :when (= (:id entity) (:id health))
           current-image CurrentImage
-          :when (= (:id current-image) (:id entity))
+          :when (= (:id entity) (:id current-image))
           animation Animation
           :accumulator (acc/all)
           :when (= (:id entity) (:entity-id animation))]
-      (let [ret (move/animate entity (:value direction) game animation)]
+      (let [ret (move/animate entity (:value health) (:value direction) game animation)]
         (some->> (:current-image ret)
                  (hash-map :value)
                  (clarax/merge! current-image))
@@ -292,7 +299,9 @@
           source Entity
           :when (= (:id source) (:source-id attack))
           target Entity
-          :when (= (:id target) (:target-id attack))]
+          :when (= (:id target) (:target-id attack))
+          target-health Health
+          :when (= (:id target) (:id target-health))]
       (clara/retract! attack)
       (when (<= (move/calc-distance source target)
                 move/max-attack-distance)
@@ -307,29 +316,22 @@
           (->> duration
                (->Animation (:id target) :hits)
                clara/insert-unconditional!)
-          (->> (:damage source)
-               (->Damage (:id target))
-               clara/insert-unconditional!))))
+          (clarax/merge! target-health {:value (- (:value target-health)
+                                                  (:damage source))}))))
     :death
     (let [entity Entity
-          :when (<= (:health entity) 0)
+          health Health
+          :when (and (= (:id entity) (:id health))
+                     (<= (:value health) 0))
           distance-from-player DistanceFromPlayer
           :when (= (:id entity) (:id distance-from-player))
           distance-from-cursor DistanceFromCursor
           :when (= (:id entity) (:id distance-from-cursor))]
       (clara/retract! distance-from-player)
-      (clara/retract! distance-from-cursor))
-    :damage
-    (let [damage Damage
-          entity Entity
-          :when (= (:id entity) (:entity-id damage))]
-      (clara/retract! damage)
-      (let [health (- (:health entity) (:damage damage))]
-        (clarax/merge! entity {:health health})
-        (when (<= health 0)
-          (utils/play-sound! "death.wav")
-          (when (= (:char-type entity) :player)
-            (restart!)))))
+      (clara/retract! distance-from-cursor)
+      (utils/play-sound! "death.wav")
+      (when (= (:char-type entity) :player)
+        (restart!)))
     :remove-expired-animations
     (let [game Game
           animation Animation

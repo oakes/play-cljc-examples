@@ -76,7 +76,8 @@
                          (session/->Direction (:id e) (:direction e))
                          (session/->CurrentImage (:id e) (:current-image e))
                          (session/->DistanceFromCursor (:id e) 0)
-                         (session/->DistanceFromPlayer (:id e) 0))))
+                         (session/->DistanceFromPlayer (:id e) 0)
+                         (session/->Health (:id e) (:health e)))))
                    session)
                  clara/fire-rules))))))
   ;; load tiled map
