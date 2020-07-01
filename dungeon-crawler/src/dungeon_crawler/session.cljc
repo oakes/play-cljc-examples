@@ -39,6 +39,7 @@
 (defrecord Direction [id value]) ;; :n, :s, ...
 (defrecord CurrentImage [id value]) ;; an image entity
 (defrecord DistanceFromCursor [id value]) ;; how far is this entity from the cursor
+(defrecord DistanceFromPlayer [id value]) ;; how far is this entity from the player
 
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
@@ -172,6 +173,14 @@
           distance DistanceFromCursor
           :when (= (:id entity) (:id distance))]
       (clarax/merge! distance {:value (move/calc-distance entity (:world-coords mouse))}))
+    :update-distance-from-player
+    (let [player Entity
+          :when (= (:char-type player) :player)
+          enemy Entity
+          :when (not= (:id player) (:id enemy))
+          distance DistanceFromPlayer
+          :when (= (:id distance) (:id enemy))]
+      (clarax/merge! distance {:value (move/calc-distance enemy player)}))
     :update-camera
     (let [window Window
           :when (or (pos? (:width window))
@@ -217,23 +226,19 @@
           :when (= (:id direction) (:id player))
           keys Keys
           :when (contains? (:pressed keys) :space)
+          distance DistanceFromPlayer
+          :accumulator (acc/min :value :returns-fact true)
+          :when (and (<= (:value distance) move/max-attack-distance)
+                     (not= (:id distance) (:id player)))
           target Entity
-          :accumulator (acc/all)
-          :when (and (not= (:char-type target) :player)
-                     (> (:health target) 0))]
+          :when (= (:id target) (:id distance))]
       (clarax/merge! player {:last-attack (:total-time game)})
-      (when-let [target (some->> target
-                                 (mapv #(vector (move/calc-distance % player) %))
-                                 (sort-by first)
-                                 (filter #(<= (first %) move/max-attack-distance))
-                                 first
-                                 second)]
-        (clara/insert-unconditional! (->Attack (:id player) (:id target)))
-        (some->> (move/get-direction
-                   (- (:x target) (:x player))
-                   (- (:y target) (:y player)))
-                 (hash-map :value)
-                 (clarax/merge! direction))))
+      (clara/insert-unconditional! (->Attack (:id player) (:id target)))
+      (some->> (move/get-direction
+                 (- (:x target) (:x player))
+                 (- (:y target) (:y player)))
+               (hash-map :value)
+               (clarax/merge! direction)))
     :player-attack-with-mouse
     (let [game Game
           player Entity
@@ -246,24 +251,20 @@
           mouse Mouse
           :when (and (= (:button mouse) :right)
                      (not= nil (:world-coords mouse)))
+          distance DistanceFromCursor
+          :accumulator (acc/min :value :returns-fact true)
+          :when (and (<= (:value distance) max-cursor-distance)
+                     (not= (:id distance) (:id player)))
           target Entity
-          :accumulator (acc/all)
-          :when (and (not= (:char-type target) :player)
-                     (> (:health target) 0))]
+          :when (= (:id target) (:id distance))]
       (clarax/merge! player {:last-attack (:total-time game)})
-      (when-let [target (some->> target
-                                 (mapv #(vector (move/calc-distance % (:world-coords mouse)) %))
-                                 (sort-by first)
-                                 (filter #(<= (first %) max-cursor-distance))
-                                 first
-                                 second)]
-        (clara/insert-unconditional! (->Attack (:id player) (:id target)))
-        (let [{:keys [x y]} (:world-coords mouse)]
-          (some->> (move/get-direction
-                     (- x (:x player))
-                     (- y (:y player)))
-                   (hash-map :value)
-                   (clarax/merge! direction)))))
+      (clara/insert-unconditional! (->Attack (:id player) (:id target)))
+      (let [{:keys [x y]} (:world-coords mouse)]
+        (some->> (move/get-direction
+                   (- x (:x player))
+                   (- y (:y player)))
+                 (hash-map :value)
+                 (clarax/merge! direction))))
     :enemy-attack
     (let [game Game
           entity Entity
@@ -309,6 +310,15 @@
           (->> (:damage source)
                (->Damage (:id target))
                clara/insert-unconditional!))))
+    :death
+    (let [entity Entity
+          :when (<= (:health entity) 0)
+          distance-from-player DistanceFromPlayer
+          :when (= (:id entity) (:id distance-from-player))
+          distance-from-cursor DistanceFromCursor
+          :when (= (:id entity) (:id distance-from-cursor))]
+      (clara/retract! distance-from-player)
+      (clara/retract! distance-from-cursor))
     :damage
     (let [damage Damage
           entity Entity
