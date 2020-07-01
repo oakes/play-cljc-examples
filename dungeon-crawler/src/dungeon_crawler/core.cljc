@@ -73,6 +73,7 @@
                      (let [e (entities/->entity game spawn-data image instance)]
                        (clara/insert session
                          (session/map->Entity e)
+                         (session/->Size (:id e) (:width e) (:height e))
                          (session/->Direction (:id e) (:direction e))
                          (session/->CurrentImage (:id e) (:current-image e))
                          (session/->DistanceFromCursor (:id e) 0)
@@ -114,8 +115,9 @@
         (c/render game (update screen-entity :viewport
                                assoc :width game-width :height game-height))
         ;; get the current player image to display
-        (when-let [{:keys [x y width height]} player]
-          (let [current-image (clara/query session :get-current-image :?id (:id player))
+        (when-let [{:keys [x y]} player]
+          (let [{:keys [width height]} (clara/query session :get-size :?id (:id player))
+                current-image (clara/query session :get-current-image :?id (:id player))
                 entities (->> (:entities tiled-map)
                               (remove (fn [[y-pos]]
                                         (or (< y-pos min-y)
@@ -133,9 +135,10 @@
                                            (t/invert camera)
                                            (t/translate x y)
                                            (t/scale width height))])
-                              (concat (for [{:keys [id x y width height]} enemies
+                              (concat (for [{:keys [id x y]} enemies
                                             :when (< min-y y max-y)
-                                            :let [current-image (clara/query session :get-current-image :?id id)]]
+                                            :let [{:keys [width height]} (clara/query session :get-size :?id id)
+                                                   current-image (clara/query session :get-current-image :?id id)]]
                                         [y (-> current-image
                                                (t/project game-width game-height)
                                                (t/scale scaled-tile-size scaled-tile-size)

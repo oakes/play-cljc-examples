@@ -23,8 +23,6 @@
                    specials
                    hits
                    deads
-                   width
-                   height
                    x
                    y
                    x-change
@@ -32,6 +30,7 @@
                    x-velocity
                    y-velocity
                    game-anchor])
+(defrecord Size [id width height])
 (defrecord Direction [id value]) ;; :n, :s, ...
 (defrecord CurrentImage [id value]) ;; an image entity
 (defrecord DistanceFromCursor [id value]) ;; number - how far is this entity from the cursor
@@ -65,7 +64,7 @@
      :min-y min-y
      :max-y max-y}))
 
-(defn update-mouse [window mouse player]
+(defn update-mouse [window mouse player player-size]
   (let [{:keys [x y]} mouse
         {:keys [width height]} window
         ;; convert mouse coords to (-1 to 1) coords
@@ -81,10 +80,10 @@
         ;; make mouse relative to player position
         wx (-> wx
                (+ (:x player))
-               (- (:width player)))
+               (- (:width player-size)))
         wy (-> wy
                (+ (:y player))
-               (- (:height player)))]
+               (- (:height player-size)))]
    {:world-coords {:x wx :y wy}}))
 
 (declare restart!)
@@ -128,6 +127,11 @@
       (let [current-image CurrentImage
             :when (= ?id (:id current-image))]
         (:value current-image)))
+    :get-size
+    (fn [?id]
+      (let [size Size
+            :when (= ?id (:id size))]
+        size))
     :get-tiled-map
     (fn []
       (let [tiled-map TiledMap]
@@ -219,8 +223,10 @@
     (let [tiled-map TiledMap
           entity Entity
           :when (or (not= 0 (:x-change entity))
-                    (not= 0 (:y-change entity)))]
-      (some->> (move/dont-overlap-tile entity tiled-map)
+                    (not= 0 (:y-change entity)))
+          size Size
+          :when (= (:id entity) (:id size))]
+      (some->> (move/dont-overlap-tile entity size tiled-map)
                (clarax/merge! entity)))
     :player-attack-with-key
     (let [game Game
@@ -303,8 +309,10 @@
           mouse Mouse
           :when (= nil (:world-coords mouse))
           player Entity
-          :when (= (:kind player) :player)]
-      (clarax/merge! mouse (update-mouse window mouse player)))
+          :when (= (:kind player) :player)
+          player-size Size
+          :when (= (:id player) (:id player-size))]
+      (clarax/merge! mouse (update-mouse window mouse player player-size)))
     :attack
     (let [game Game
           attack Attack

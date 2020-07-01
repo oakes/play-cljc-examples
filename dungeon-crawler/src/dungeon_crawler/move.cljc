@@ -26,7 +26,7 @@
       velocity)))
 
 (defn get-player-velocity
-  [{:keys [width height]}
+  [{:keys [width height] :as window}
    pressed-keys
    mouse
    {:keys [x y x-velocity y-velocity]}]
@@ -97,9 +97,8 @@
            (nth directions)))
 
 (defn dont-overlap-tile
-  [{:keys [x y
-           width height
-           x-change y-change]}
+  [{:keys [x y x-change y-change]}
+   {:keys [width height]}
    tiled-map]
   (let [old-x (- x x-change)
         old-y (- y y-change)
