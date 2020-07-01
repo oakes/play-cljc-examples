@@ -79,7 +79,8 @@
                          (session/->DistanceFromPlayer (:id e) 0)
                          (session/->Health (:id e) (:health e))
                          (session/->LastAttack (:id e) 0)
-                         (session/->Damage (:id e) (:damage e)))))
+                         (session/->Damage (:id e) (:damage e))
+                         (session/->AttackDelay (:id e) (:attack-delay e)))))
                    session)
                  clara/fire-rules))))))
   ;; load tiled map

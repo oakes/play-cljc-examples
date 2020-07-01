@@ -31,15 +31,15 @@
                    y-change
                    x-velocity
                    y-velocity
-                   game-anchor
-                   attack-delay])
+                   game-anchor])
 (defrecord Direction [id value]) ;; :n, :s, ...
 (defrecord CurrentImage [id value]) ;; an image entity
 (defrecord DistanceFromCursor [id value]) ;; number - how far is this entity from the cursor
 (defrecord DistanceFromPlayer [id value]) ;; number - how far is this entity from the player
 (defrecord Health [id value]) ;; number
-(defrecord LastAttack [id value]) ;; number - timestamp of the last attack
 (defrecord Damage [id value]) ;; number - how much damage this entity deals per attack
+(defrecord LastAttack [id value]) ;; number - timestamp of the last attack
+(defrecord AttackDelay [id value]) ;; number - minimum time between attacks
 
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
@@ -226,11 +226,13 @@
     (let [game Game
           player Entity
           :when (= (:kind player) :player)
+          attack-delay AttackDelay
+          :when (= (:id player) (:id attack-delay))
           last-attack LastAttack
           :when (and (= (:id player) (:id last-attack))
                      (-> (:total-time game)
                          (- (:value last-attack))
-                         (>= (:attack-delay player))))
+                         (>= (:value attack-delay))))
           direction Direction
           :when (= (:id direction) (:id player))
           keys Keys
@@ -252,11 +254,13 @@
     (let [game Game
           player Entity
           :when (= (:kind player) :player)
+          attack-delay AttackDelay
+          :when (= (:id player) (:id attack-delay))
           last-attack LastAttack
           :when (and (= (:id player) (:id last-attack))
                      (-> (:total-time game)
                          (- (:value last-attack))
-                         (>= (:attack-delay player))))
+                         (>= (:value attack-delay))))
           direction Direction
           :when (= (:id direction) (:id player))
           mouse Mouse
@@ -280,11 +284,13 @@
     (let [game Game
           enemy Entity
           :when (not= (:kind enemy) :player)
+          attack-delay AttackDelay
+          :when (= (:id enemy) (:id attack-delay))
           last-attack LastAttack
           :when (and (= (:id enemy) (:id last-attack))
                      (-> (:total-time game)
                          (- (:value last-attack))
-                         (>= (:attack-delay enemy))))
+                         (>= (:value attack-delay))))
           distance DistanceFromPlayer
           :when (and (= (:id enemy) (:id distance))
                      (<= (:value distance) move/max-attack-distance))
