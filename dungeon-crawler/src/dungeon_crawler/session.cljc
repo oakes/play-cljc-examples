@@ -32,7 +32,6 @@
                    x-velocity
                    y-velocity
                    game-anchor
-                   last-attack
                    damage
                    attack-delay])
 (defrecord Direction [id value]) ;; :n, :s, ...
@@ -40,6 +39,7 @@
 (defrecord DistanceFromCursor [id value]) ;; how far is this entity from the cursor
 (defrecord DistanceFromPlayer [id value]) ;; how far is this entity from the player
 (defrecord Health [id value]) ;; number
+(defrecord LastAttack [id value]) ;; number
 
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
@@ -225,9 +225,11 @@
     :player-attack-with-key
     (let [game Game
           player Entity
-          :when (and (= (:char-type player) :player)
+          :when (= (:char-type player) :player)
+          last-attack LastAttack
+          :when (and (= (:id player) (:id last-attack))
                      (-> (:total-time game)
-                         (- (:last-attack player))
+                         (- (:value last-attack))
                          (>= (:attack-delay player))))
           direction Direction
           :when (= (:id direction) (:id player))
@@ -239,7 +241,7 @@
                      (not= (:id distance) (:id player)))
           target Entity
           :when (= (:id target) (:id distance))]
-      (clarax/merge! player {:last-attack (:total-time game)})
+      (clarax/merge! last-attack {:value (:total-time game)})
       (clara/insert-unconditional! (->Attack (:id player) (:id target)))
       (some->> (move/get-direction
                  (- (:x target) (:x player))
@@ -249,9 +251,11 @@
     :player-attack-with-mouse
     (let [game Game
           player Entity
-          :when (and (= (:char-type player) :player)
+          :when (= (:char-type player) :player)
+          last-attack LastAttack
+          :when (and (= (:id player) (:id last-attack))
                      (-> (:total-time game)
-                         (- (:last-attack player))
+                         (- (:value last-attack))
                          (>= (:attack-delay player))))
           direction Direction
           :when (= (:id direction) (:id player))
@@ -264,7 +268,7 @@
                      (not= (:id distance) (:id player)))
           target Entity
           :when (= (:id target) (:id distance))]
-      (clarax/merge! player {:last-attack (:total-time game)})
+      (clarax/merge! last-attack {:value (:total-time game)})
       (clara/insert-unconditional! (->Attack (:id player) (:id target)))
       (let [{:keys [x y]} (:world-coords mouse)]
         (some->> (move/get-direction
@@ -275,16 +279,18 @@
     :enemy-attack
     (let [game Game
           enemy Entity
-          :when (and (not= (:char-type enemy) :player)
+          :when (not= (:char-type enemy) :player)
+          last-attack LastAttack
+          :when (and (= (:id enemy) (:id last-attack))
                      (-> (:total-time game)
-                         (- (:last-attack enemy))
+                         (- (:value last-attack))
                          (>= (:attack-delay enemy))))
           distance DistanceFromPlayer
           :when (and (= (:id enemy) (:id distance))
                      (<= (:value distance) move/max-attack-distance))
           player Entity
           :when (= (:char-type player) :player)]
-      (clarax/merge! enemy {:last-attack (:total-time game)})
+      (clarax/merge! last-attack {:value (:total-time game)})
       (clara/insert-unconditional! (->Attack (:id enemy) (:id player))))
     :update-mouse-world-coords
     (let [window Window
