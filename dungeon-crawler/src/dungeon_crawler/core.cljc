@@ -72,7 +72,19 @@
                    (fn [session instance]
                      (let [e (entities/->entity game spawn-data image instance)]
                        (clara/insert session
-                         (session/map->Entity e)
+                         (session/map->Entity (select-keys e [:id
+                                                              :kind
+                                                              :moves
+                                                              :attacks
+                                                              :specials
+                                                              :hits
+                                                              :deads
+                                                              :x
+                                                              :y
+                                                              :x-change
+                                                              :y-change
+                                                              :x-velocity
+                                                              :y-velocity]))
                          (session/->Size (:id e) (:width e) (:height e))
                          (session/->Direction (:id e) (:direction e))
                          (session/->CurrentImage (:id e) (:current-image e))
