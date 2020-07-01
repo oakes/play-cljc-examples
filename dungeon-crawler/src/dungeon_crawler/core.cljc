@@ -78,7 +78,8 @@
                          (session/->DistanceFromCursor (:id e) 0)
                          (session/->DistanceFromPlayer (:id e) 0)
                          (session/->Health (:id e) (:health e))
-                         (session/->LastAttack (:id e) 0))))
+                         (session/->LastAttack (:id e) 0)
+                         (session/->Damage (:id e) (:damage e)))))
                    session)
                  clara/fire-rules))))))
   ;; load tiled map

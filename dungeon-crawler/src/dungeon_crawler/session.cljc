@@ -32,14 +32,14 @@
                    x-velocity
                    y-velocity
                    game-anchor
-                   damage
                    attack-delay])
 (defrecord Direction [id value]) ;; :n, :s, ...
 (defrecord CurrentImage [id value]) ;; an image entity
-(defrecord DistanceFromCursor [id value]) ;; how far is this entity from the cursor
-(defrecord DistanceFromPlayer [id value]) ;; how far is this entity from the player
+(defrecord DistanceFromCursor [id value]) ;; number - how far is this entity from the cursor
+(defrecord DistanceFromPlayer [id value]) ;; number - how far is this entity from the player
 (defrecord Health [id value]) ;; number
-(defrecord LastAttack [id value]) ;; number
+(defrecord LastAttack [id value]) ;; number - timestamp of the last attack
+(defrecord Damage [id value]) ;; number - how much damage this entity deals per attack
 
 (defrecord Game [total-time delta-time context])
 (defrecord Window [width height])
@@ -304,6 +304,8 @@
           attack Attack
           source Entity
           :when (= (:id source) (:source-id attack))
+          source-damage Damage
+          :when (= (:id source) (:id source-damage))
           target Entity
           :when (= (:id target) (:target-id attack))
           target-health Health
@@ -323,7 +325,7 @@
                (->Animation (:id target) :hits)
                clara/insert-unconditional!)
           (clarax/merge! target-health {:value (- (:value target-health)
-                                                  (:damage source))}))))
+                                                  (:value source-damage))}))))
     :death
     (let [entity Entity
           health Health
