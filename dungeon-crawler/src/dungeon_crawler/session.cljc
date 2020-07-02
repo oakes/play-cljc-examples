@@ -9,7 +9,7 @@
             [clarax.rules :as clarax]
             #?(:clj  [clarax.macros-java :refer [->session]]
                :cljs [clarax.macros-js :refer-macros [->session]]))
-  #?(:cljs (:require-macros [dungeon-crawler.session :refer [->session-wrapper]])))
+  #?(:cljs (:require-macros [dungeon-crawler.session :refer [merge-into-session]])))
 
 (def orig-camera (e/->camera))
 (def vertical-tiles 7)
@@ -361,10 +361,10 @@
           :when (<= (:expire-time animation) (:total-time game))]
       (clara/retract! animation))})
 
-#?(:clj (defmacro ->session-wrapper []
+#?(:clj (defmacro merge-into-session []
           (list '->session (merge queries rules))))
 
-(def initial-session (->session-wrapper))
+(def initial-session (merge-into-session))
 
 (defonce *session (atom nil))
 (defonce *reload? (atom false))
