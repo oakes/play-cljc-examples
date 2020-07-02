@@ -138,11 +138,12 @@
         tiled-map))
     :get-enemy-under-cursor
     (fn []
-      (let [target Entity
-            :when (not= (:kind target) :player)
-            distance DistanceFromCursor
+      (let [distance DistanceFromCursor
             :accumulator (acc/min :value :returns-fact true)
-            :when (<= (:value distance) max-cursor-distance)]
+            :when (<= (:value distance) max-cursor-distance)
+            target Entity
+            :when (and (= (:id target) (:id distance))
+                       (not= (:kind target) :player))]
         target))})
 
 (def rules
