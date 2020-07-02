@@ -302,7 +302,10 @@
                          (- (:value last-attack))
                          (>= (:value attack-delay))))
           player Entity
-          :when (= (:kind player) :player)]
+          :when (= (:kind player) :player)
+          player-health Health
+          :when (and (= (:id player) (:id player-health))
+                     (> (:value player-health) 0))]
       (clarax/merge! last-attack {:value (:total-time game)})
       (clara/insert-unconditional! (->Attack (:id enemy) (:id player))))
     :update-mouse-world-coords
