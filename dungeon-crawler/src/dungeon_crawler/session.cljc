@@ -289,8 +289,11 @@
                  (clarax/merge! direction))))
     :enemy-attack
     (let [game Game
+          distance DistanceFromPlayer
+          :when (<= (:value distance) move/max-attack-distance)
           enemy Entity
-          :when (not= (:kind enemy) :player)
+          :when (and (not= (:kind enemy) :player)
+                     (= (:id enemy) (:id distance)))
           attack-delay AttackDelay
           :when (= (:id enemy) (:id attack-delay))
           last-attack LastAttack
@@ -298,9 +301,6 @@
                      (-> (:total-time game)
                          (- (:value last-attack))
                          (>= (:value attack-delay))))
-          distance DistanceFromPlayer
-          :when (and (= (:id enemy) (:id distance))
-                     (<= (:value distance) move/max-attack-distance))
           player Entity
           :when (= (:kind player) :player)]
       (clarax/merge! last-attack {:value (:total-time game)})
