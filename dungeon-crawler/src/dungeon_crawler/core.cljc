@@ -150,7 +150,7 @@
                               (concat (for [{:keys [id x y]} enemies
                                             :when (< min-y y max-y)
                                             :let [{:keys [width height]} (clara/query session :get-size :?id id)
-                                                   current-image (clara/query session :get-current-image :?id id)]]
+                                                  current-image (clara/query session :get-current-image :?id id)]]
                                         [y (-> current-image
                                                (t/project game-width game-height)
                                                (t/scale scaled-tile-size scaled-tile-size)
