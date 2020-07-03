@@ -46,7 +46,6 @@
 (defrecord Mouse [x y world-coords button])
 (defrecord Keys [pressed])
 (defrecord TiledMap [layers width height entities])
-(defrecord Attack [source-id target-id])
 (defrecord Animation [entity-id kind expire-time])
 
 (defn update-camera [window player]
@@ -86,7 +85,7 @@
                (- (:height player-size)))]
    {:world-coords {:x wx :y wy}}))
 
-(declare restart!)
+(declare restart! attack!)
 
 (def queries
   '{:get-game
@@ -233,6 +232,8 @@
     (let [game Game
           player Entity
           :when (= (:kind player) :player)
+          player-damage Damage
+          :when (= (:id player) (:id player-damage))
           attack-delay AttackDelay
           :when (= (:id player) (:id attack-delay))
           last-attack LastAttack
@@ -249,9 +250,11 @@
           :when (and (<= (:value distance) move/max-attack-distance)
                      (not= (:id distance) (:id player)))
           target Entity
-          :when (= (:id target) (:id distance))]
+          :when (= (:id target) (:id distance))
+          target-health Health
+          :when (= (:id target) (:id target-health))]
       (clarax/merge! last-attack {:value (:total-time game)})
-      (clara/insert-unconditional! (->Attack (:id player) (:id target)))
+      (attack! game player player-damage target target-health)
       (some->> (move/get-direction
                  (- (:x target) (:x player))
                  (- (:y target) (:y player)))
@@ -261,6 +264,8 @@
     (let [game Game
           player Entity
           :when (= (:kind player) :player)
+          player-damage Damage
+          :when (= (:id player) (:id player-damage))
           attack-delay AttackDelay
           :when (= (:id player) (:id attack-delay))
           last-attack LastAttack
@@ -278,9 +283,11 @@
           :when (and (<= (:value distance) max-cursor-distance)
                      (not= (:id distance) (:id player)))
           target Entity
-          :when (= (:id target) (:id distance))]
+          :when (= (:id target) (:id distance))
+          target-health Health
+          :when (= (:id target) (:id target-health))]
       (clarax/merge! last-attack {:value (:total-time game)})
-      (clara/insert-unconditional! (->Attack (:id player) (:id target)))
+      (attack! game player player-damage target target-health)
       (let [{:keys [x y]} (:world-coords mouse)]
         (some->> (move/get-direction
                    (- x (:x player))
@@ -294,6 +301,8 @@
           enemy Entity
           :when (and (not= (:kind enemy) :player)
                      (= (:id enemy) (:id distance)))
+          enemy-damage Damage
+          :when (= (:id enemy) (:id enemy-damage))
           attack-delay AttackDelay
           :when (= (:id enemy) (:id attack-delay))
           last-attack LastAttack
@@ -307,7 +316,7 @@
           :when (and (= (:id player) (:id player-health))
                      (> (:value player-health) 0))]
       (clarax/merge! last-attack {:value (:total-time game)})
-      (clara/insert-unconditional! (->Attack (:id enemy) (:id player))))
+      (attack! game enemy enemy-damage player player-health))
     :update-mouse-world-coords
     (let [window Window
           mouse Mouse
@@ -317,33 +326,6 @@
           player-size Size
           :when (= (:id player) (:id player-size))]
       (clarax/merge! mouse (update-mouse window mouse player player-size)))
-    :attack
-    (let [game Game
-          attack Attack
-          source Entity
-          :when (= (:id source) (:source-id attack))
-          source-damage Damage
-          :when (= (:id source) (:id source-damage))
-          target Entity
-          :when (= (:id target) (:target-id attack))
-          target-health Health
-          :when (= (:id target) (:id target-health))]
-      (clara/retract! attack)
-      (when (<= (move/calc-distance source target)
-                move/max-attack-distance)
-        (let [duration (+ (:total-time game) animation-duration)
-              sound-file (if (= (:kind source) :player)
-                           "monsterhurt.wav"
-                           "playerhurt.wav")]
-          (utils/play-sound! sound-file)
-          (->> duration
-               (->Animation (:id source) :attacks)
-               clara/insert-unconditional!)
-          (->> duration
-               (->Animation (:id target) :hits)
-               clara/insert-unconditional!)
-          (clarax/merge! target-health {:value (- (:value target-health)
-                                                  (:value source-damage))}))))
     :death
     (let [entity Entity
           health Health
@@ -383,4 +365,21 @@
             (Thread/sleep restart-delay)
             (reset! *reload? true))
      :cljs (js/setTimeout #(reset! *reload? true) restart-delay)))
+
+(defn attack! [game source source-damage target target-health]
+  (when (<= (move/calc-distance source target)
+            move/max-attack-distance)
+    (let [duration (+ (:total-time game) animation-duration)
+          sound-file (if (= (:kind source) :player)
+                       "monsterhurt.wav"
+                       "playerhurt.wav")]
+      (utils/play-sound! sound-file)
+      (->> duration
+           (->Animation (:id source) :attacks)
+           clara/insert-unconditional!)
+      (->> duration
+           (->Animation (:id target) :hits)
+           clara/insert-unconditional!)
+      (clarax/merge! target-health {:value (- (:value target-health)
+                                              (:value source-damage))}))))
 
