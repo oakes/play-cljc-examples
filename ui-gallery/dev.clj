@@ -17,4 +17,8 @@
   [_]
   (ui-gallery.start-dev/start))
 
+(defmethod task "repl"
+  [_]
+  (clojure.main/repl :init #(doto 'ui-gallery.start-dev require in-ns)))
+
 (task *command-line-args*)

@@ -17,4 +17,8 @@
   [_]
   (dungeon-crawler.start-dev/start))
 
+(defmethod task "repl"
+  [_]
+  (clojure.main/repl :init #(doto 'dungeon-crawler.start-dev require in-ns)))
+
 (task *command-line-args*)
