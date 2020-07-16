@@ -157,8 +157,10 @@
                      (not= (:kind enemy) :player))
           enemy-health Health
           :when (and (= (:id enemy) (:id enemy-health))
-                     (> (:value enemy-health) 0))]
-      (clarax/merge! enemy (-> (move/get-enemy-velocity enemy player (:value player-health))
+                     (> (:value enemy-health) 0))
+          distance-from-player DistanceFromPlayer
+          :when (= (:id enemy) (:id distance-from-player))]
+      (clarax/merge! enemy (-> (move/get-enemy-velocity enemy player (:value player-health) (:value distance-from-player))
                                (move/move enemy game)
                                (assoc :game-anchor game))))
     :move-player

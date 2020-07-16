@@ -62,19 +62,18 @@
   (math abs (math sqrt (+ (math pow (- x1 x2) 2)
                           (math pow (- y1 y2) 2)))))
 
-(defn get-enemy-velocity [{:keys [x-velocity y-velocity] :as enemy} player player-health]
+(defn get-enemy-velocity [{:keys [x-velocity y-velocity] :as enemy} player player-health distance-from-player]
   (or (when (> player-health 0)
-        (let [distance (calc-distance enemy player)]
-          (cond
-            (< min-aggro-distance distance max-aggro-distance)
-            [(cond-> max-enemy-velocity
-                     (< (:x player) (:x enemy))
-                     (* -1))
-             (cond-> max-enemy-velocity
-                     (< (:y player) (:y enemy))
-                     (* -1))]
-            (<= distance min-aggro-distance)
-            [0 0])))
+        (cond
+          (< min-aggro-distance distance-from-player max-aggro-distance)
+          [(cond-> max-enemy-velocity
+                   (< (:x player) (:x enemy))
+                   (* -1))
+           (cond-> max-enemy-velocity
+                   (< (:y player) (:y enemy))
+                   (* -1))]
+          (<= distance-from-player min-aggro-distance)
+          [0 0]))
       [(if (= 0 x-velocity)
          (-> (rand-int 3)
              (- 1)
