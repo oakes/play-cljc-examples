@@ -2,6 +2,7 @@
   (:require [dungeon-crawler.utils :as utils]
             [dungeon-crawler.entities :as entities]
             [dungeon-crawler.session :as session]
+            [dungeon-crawler.move :as move]
             [clojure.edn :as edn]
             [play-cljc.gl.core :as c]
             [play-cljc.transforms :as t]
@@ -88,8 +89,8 @@
                          (session/->Size (:id e) (:width e) (:height e))
                          (session/->Direction (:id e) (:direction e))
                          (session/->CurrentImage (:id e) (:current-image e))
-                         (session/->DistanceFromCursor (:id e) 0)
-                         (session/->DistanceFromPlayer (:id e) 0)
+                         (session/->DistanceFromCursor (:id e) (inc move/max-cursor-distance))
+                         (session/->DistanceFromPlayer (:id e) (inc move/max-attack-distance))
                          (session/->Health (:id e) (:health e))
                          (session/->LastAttack (:id e) 0)
                          (session/->Damage (:id e) (:damage e))

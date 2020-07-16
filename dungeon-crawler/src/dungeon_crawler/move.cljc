@@ -15,6 +15,7 @@
 (def velocities [[-1 0] [-1 -1] [0 -1] [1 -1]
                  [1 0] [1 1] [0 1] [-1 1]])
 (def max-attack-distance 0.5)
+(def max-cursor-distance 0.5)
 (def min-aggro-distance (- max-attack-distance 0.1))
 (def max-aggro-distance 2)
 
