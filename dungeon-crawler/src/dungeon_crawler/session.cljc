@@ -133,7 +133,7 @@
       [eid ::e/y enemy-y {:then false}]
       [eid ::e/x-velocity enemy-x-velocity {:then false}]
       [eid ::e/y-velocity enemy-y-velocity {:then false}]
-      [eid ::distance-from-player distance-from-player]
+      [eid ::distance-from-player distance-from-player {:then false}]
       :when
       (not= enemy-kind :player)
       (> enemy-health 0)
@@ -186,19 +186,22 @@
       [id ::e/x x]
       [id ::e/y y]
       :then
-      (o/insert! id ::distance-from-cursor (move/calc-distance x y world-x world-y))]}))
+      (o/insert! id ::distance-from-cursor (move/calc-distance x y world-x world-y))]
+     ::update-distance-from-player
+     [:what
+      [pid ::e/kind :player]
+      [pid ::e/x player-x]
+      [pid ::e/y player-y]
+      [eid ::e/x enemy-x]
+      [eid ::e/y enemy-y]
+      :when
+      (not= eid pid)
+      :then
+      (o/insert! eid ::distance-from-player (move/calc-distance player-x player-y enemy-x enemy-y))]}))
 
 #_
 (def rules
-  '{:update-distance-from-player
-    (let [player Entity
-          :when (= (:kind player) :player)
-          enemy Entity
-          :when (not= (:id player) (:id enemy))
-          distance DistanceFromPlayer
-          :when (= (:id distance) (:id enemy))]
-      (clarax/merge! distance {:value (move/calc-distance enemy player)}))
-    :animate
+  '{:animate
     (let [game Game
           entity Entity
           direction Direction
