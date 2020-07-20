@@ -1,64 +1,24 @@
 (ns dungeon-crawler.session
   (:require [dungeon-crawler.utils :as utils]
             [dungeon-crawler.move :as move]
-            [play-cljc.gl.entities-2d :as e]
+            [dungeon-crawler.entities :as e]
+            [dungeon-crawler.tiles :as tiles]
+            [play-cljc.gl.entities-2d :as e2d]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
-            [clara.rules :as clara]
-            [clara.rules.accumulators :as acc]
-            [clarax.rules :as clarax]
-            #?(:clj  [clarax.macros-java :refer [->session]]
-               :cljs [clarax.macros-js :refer-macros [->session]]))
-  #?(:cljs (:require-macros [dungeon-crawler.session :refer [merge-into-session]])))
+            [odoyle.rules :as o]))
 
-(def orig-camera (e/->camera))
+(def orig-camera (e2d/->camera))
 (def vertical-tiles 7)
 (def animation-duration 0.5)
 
-(defrecord Entity [id
-                   kind
-                   moves
-                   attacks
-                   specials
-                   hits
-                   deads
-                   x
-                   y
-                   x-change
-                   y-change
-                   x-velocity
-                   y-velocity
-                   game-anchor])
-(defrecord Size [id width height])
-(defrecord Direction [id value]) ;; :n, :s, ...
-(defrecord CurrentImage [id value]) ;; an image entity
-(defrecord DistanceFromCursor [id value]) ;; number - how far is this entity from the cursor
-(defrecord DistanceFromPlayer [id value]) ;; number - how far is this entity from the player
-(defrecord Health [id value]) ;; number
-(defrecord Damage [id value]) ;; number - how much damage this entity deals per attack
-(defrecord LastAttack [id value]) ;; number - timestamp of the last attack
-(defrecord AttackDelay [id value]) ;; number - minimum time between attacks
-
-(defrecord Game [total-time delta-time context])
-(defrecord Window [width height])
-(defrecord Camera [camera window-anchor player-anchor min-y max-y])
-(defrecord Mouse [x y world-coords button])
-(defrecord Keys [pressed])
-(defrecord TiledMap [layers width height entities])
-(defrecord Animation [entity-id kind expire-time])
-
-(defn update-camera [window player]
-  (let [{game-width :width game-height :height} window
-        scaled-tile-size (/ game-height vertical-tiles)
-        x (:x player)
-        y (:y player)
+(defn update-camera [game-width game-height x y]
+  (let [scaled-tile-size (/ game-height vertical-tiles)
         offset-x (/ game-width 2 scaled-tile-size)
         offset-y (/ game-height 2 scaled-tile-size)
         min-y (- y offset-y 1)
         max-y (+ y offset-y)]
     {:camera (t/translate orig-camera (- x offset-x) (- y offset-y))
-     :window-anchor window
-     :player-anchor player
      :min-y min-y
      :max-y max-y}))
 
@@ -84,99 +44,129 @@
                (- (:height player-size)))]
    {:world-coords {:x wx :y wy}}))
 
-(declare restart! attack!)
-
 (def queries
-  '{:get-game
-    (fn []
-      (let [game Game]
-        game))
-    :get-window
-    (fn []
-      (let [window Window]
-        window))
-    :get-camera
-    (fn []
-      (let [camera Camera]
-        camera))
-    :get-mouse
-    (fn []
-      (let [mouse Mouse]
-        mouse))
-    :get-keys
-    (fn []
-      (let [keys Keys]
-        keys))
-    :get-player
-    (fn []
-      (let [entity Entity
-            :when (= (:kind entity) :player)
-            direction Direction
-            :when (= (:id direction) (:id entity))]
-        entity))
-    :get-enemies
-    (fn []
-      (let [entity Entity
-            :accumulator (acc/all)
-            :when (not= (:kind entity) :player)]
-        entity))
-    :get-current-image
-    (fn [?id]
-      (let [current-image CurrentImage
-            :when (= ?id (:id current-image))]
-        (:value current-image)))
-    :get-size
-    (fn [?id]
-      (let [size Size
-            :when (= ?id (:id size))]
-        size))
-    :get-tiled-map
-    (fn []
-      (let [tiled-map TiledMap]
-        tiled-map))
-    :get-enemy-under-cursor
-    (fn []
-      (let [distance DistanceFromCursor
-            :accumulator (acc/min :value :returns-fact true)
-            :when (<= (:value distance) move/max-cursor-distance)
-            target Entity
-            :when (and (= (:id target) (:id distance))
-                       (not= (:kind target) :player))]
-        target))})
+  (o/ruleset
+    {::get-window
+     [:what
+      [::window ::width width]
+      [::window ::height height]]
+     ::get-camera
+     [:what
+      [::camera ::camera camera]
+      [::camera ::min-y min-y]
+      [::camera ::max-y max-y]]
+     ::get-mouse
+     [:what
+      [::mouse ::x x]
+      [::mouse ::y y]
+      [::mouse ::world-coords world-coords]
+      [::mouse ::button button]]
+     ::get-keys
+     [:what
+      [::keys ::pressed pressed]]
+     ::get-entity
+     [:what
+      [id ::e/kind kind]
+      [id ::e/moves moves]
+      [id ::e/attacks attacks]
+      [id ::e/specials specials]
+      [id ::e/hits hits]
+      [id ::e/deads deads]
+      [id ::e/x x]
+      [id ::e/y y]
+      [id ::e/x-change x-change]
+      [id ::e/y-change y-change]
+      [id ::e/x-velocity x-velocity]
+      [id ::e/y-velocity y-velocity]
+      [id ::e/direction direction]
+      [id ::e/current-image current-image]
+      [id ::e/width width]
+      [id ::e/height height]]
+     ::get-tiled-map
+     [:what
+      [::tiles/tiled-map ::tiles/layers layers]
+      [::tiles/tiled-map ::tiles/width width]
+      [::tiles/tiled-map ::tiles/height height]
+      [::tiles/tiled-map ::tiles/entities entities]]
+     ::get-distance-from-cursor
+     [:what
+      [id ::distance-from-cursor distance]
+      :when
+      (<= distance move/max-cursor-distance)]}))
+
+(defn get-enemy-under-cursor [session]
+  (when-let [distances (not-empty (o/query-all session ::get-distance-from-cursor))]
+    (->> distances
+         (apply min-key :distance)
+         :distance)))
 
 (def rules
-  '{:move-enemy
-    (let [game Game
-          player Entity
-          :when (= (:kind player) :player)
-          player-health Health
-          :when (= (:id player) (:id player-health))
-          enemy Entity
-          :when (and (not= (:game-anchor enemy) game)
-                     (not= (:kind enemy) :player))
-          enemy-health Health
-          :when (and (= (:id enemy) (:id enemy-health))
-                     (> (:value enemy-health) 0))
-          distance-from-player DistanceFromPlayer
-          :when (= (:id enemy) (:id distance-from-player))]
-      (clarax/merge! enemy (-> (move/get-enemy-velocity enemy player (:value player-health) (:value distance-from-player))
-                               (move/move enemy game)
-                               (assoc :game-anchor game))))
-    :move-player
-    (let [game Game
-          window Window
-          keys Keys
-          mouse Mouse
-          player Entity
-          :when (and (not= (:game-anchor player) game)
-                     (= (:kind player) :player))
-          player-health Health
-          :when (and (= (:id player) (:id player-health))
-                     (> (:value player-health) 0))]
-      (clarax/merge! player (-> (move/get-player-velocity window (:pressed keys) mouse player)
-                                (move/move player game)
-                                (assoc :game-anchor game))))
-    :update-distance-from-cursor
+  (o/ruleset
+    {::move-enemy
+     [:what
+      [::time ::delta delta-time]
+      [pid ::e/kind :player]
+      [pid ::e/health player-health]
+      [pid ::e/x player-x]
+      [pid ::e/y player-y]
+      [pid ::e/x-velocity player-x-velocity]
+      [pid ::e/y-velocity player-y-velocity]
+      [eid ::e/kind enemy-kind]
+      [eid ::e/health enemy-health]
+      [eid ::e/x enemy-x {:then false}]
+      [eid ::e/y enemy-y {:then false}]
+      [eid ::e/x-velocity enemy-x-velocity {:then false}]
+      [eid ::e/y-velocity enemy-y-velocity {:then false}]
+      [eid ::distance-from-player distance-from-player]
+      :when
+      (not= enemy-kind :player)
+      (> enemy-health 0)
+      :then
+      (let [enemy {:x enemy-x :y enemy-y :x-velocity enemy-x-velocity :y-velocity enemy-y-velocity}
+            player {:x player-x :y player-y :x-velocity player-x-velocity :y-velocity player-y-velocity}
+            [xv yv] (move/get-enemy-velocity enemy player player-health distance-from-player)]
+        (some->> (move/move enemy-x enemy-y xv yv delta-time)
+                 (o/insert! eid)))]
+     ::move-player
+     [:what
+      [::time ::delta delta-time]
+      [::window ::width width]
+      [::window ::height height]
+      [::keys ::pressed pressed]
+      [::mouse ::x mouse-x]
+      [::mouse ::y mouse-y]
+      [::mouse ::button mouse-button]
+      [pid ::e/kind :player]
+      [pid ::e/health player-health]
+      [pid ::e/x player-x {:then false}]
+      [pid ::e/y player-y {:then false}]
+      [pid ::e/x-velocity player-x-velocity {:then false}]
+      [pid ::e/y-velocity player-y-velocity {:then false}]
+      :when
+      (> player-health 0)
+      :then
+      (let [player {:x player-x :y player-y :x-velocity player-x-velocity :y-velocity player-y-velocity}
+            [xv yv] (move/get-player-velocity width height pressed mouse-x mouse-y mouse-button player)]
+        (some->> (move/move player-x player-y xv yv delta-time)
+                 (o/insert! pid)))]
+     ::update-camera
+     [:what
+      [::window ::width width]
+      [::window ::height height]
+      [id ::e/kind :player]
+      [id ::e/x x]
+      [id ::e/y y]
+      [::camera ::camera camera {:then false}]
+      :then
+      (let [{:keys [camera min-y max-y]} (update-camera width height x y)]
+        (o/insert! ::camera
+                   {::camera camera
+                    ::min-y min-y
+                    ::max-y max-y}))]}))
+
+#_
+(def rules
+  '{:update-distance-from-cursor
     (let [mouse Mouse
           :when (not= nil (:world-coords mouse))
           entity Entity
@@ -191,16 +181,6 @@
           distance DistanceFromPlayer
           :when (= (:id distance) (:id enemy))]
       (clarax/merge! distance {:value (move/calc-distance enemy player)}))
-    :update-camera
-    (let [window Window
-          :when (or (pos? (:width window))
-                    (pos? (:height window)))
-          player Entity
-          :when (= (:kind player) :player)
-          camera Camera
-          :when (or (not= (:window-anchor camera) window)
-                    (not= (:player-anchor camera) player))]
-      (clarax/merge! camera (update-camera window player)))
     :animate
     (let [game Game
           entity Entity
@@ -350,10 +330,9 @@
           :when (<= (:expire-time animation) (:total-time game))]
       (clara/retract! animation))})
 
-#?(:clj (defmacro merge-into-session []
-          (list '->session (merge queries rules))))
-
-(def initial-session (merge-into-session))
+(def initial-session
+  (reduce o/add-rule (o/->session)
+          (concat queries rules)))
 
 (defonce *session (atom nil))
 (defonce *reload? (atom false))
@@ -370,6 +349,7 @@
             (reset! *reload? true))
      :cljs (js/setTimeout #(reset! *reload? true) restart-delay)))
 
+#_
 (defn attack! [game source source-damage target target-health]
   (let [duration (+ (:total-time game) animation-duration)
         sound-file (if (= (:kind source) :player)

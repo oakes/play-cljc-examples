@@ -6,8 +6,7 @@
             [clojure.edn :as edn]
             [play-cljc.gl.core :as c]
             [play-cljc.transforms :as t]
-            [clara.rules :as clara]
-            [clarax.rules :as clarax]
+            [odoyle.rules :as o]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])
             #?(:clj  [dungeon-crawler.tiles :as tiles :refer [read-tiled-map]]
@@ -16,35 +15,23 @@
 (defn update-pressed-keys! [f k]
   (swap! session/*session
     (fn [session]
-      (as-> session $
-            (clara/query $ :get-keys)
-            (clarax/merge session $ (update $ :pressed f k))
-            (clara/fire-rules $)))))
+      (let [pressed-keys (-> session
+                             (o/query ::session/get-keys)
+                             :pressed
+                             (f k))]
+        (o/insert session ::session/keys ::session/pressed pressed-keys)))))
 
 (defn update-mouse-button! [button]
-  (swap! session/*session
-    (fn [session]
-      (as-> session $
-            (clara/query $ :get-mouse)
-            (clarax/merge session $ {:button button})
-            (clara/fire-rules $)))))
+  (swap! session/*session o/insert ::session/mouse ::session/button button))
 
 (defn update-mouse-coords! [x y]
-  (-> (swap! session/*session
-        (fn [session]
-          (as-> session $
-                (clara/query $ :get-mouse)
-                (clarax/merge session $ {:x x :y y :world-coords nil})
-                (clara/fire-rules $))))
-      (clara/query :get-enemy-under-cursor)))
+  (-> (swap! session/*session o/insert ::session/mouse {::session/x x
+                                                        ::session/y y
+                                                        ::session/world-coords nil})
+      session/get-enemy-under-cursor))
 
 (defn update-window-size! [width height]
-  (swap! session/*session
-    (fn [session]
-      (as-> session $
-            (clara/query $ :get-window)
-            (clarax/merge session $ {:width width :height height})
-            (clara/fire-rules $)))))
+  (swap! session/*session o/insert ::session/window {::session/width width ::session/height height}))
 
 (def parsed-tiled-map (edn/read-string (read-tiled-map "level1.tmx")))
 
@@ -55,13 +42,20 @@
   ;; initialize session
   (reset! session/*session
     (-> session/initial-session
-        (clara/insert
-          (session/map->Game game)
-          (session/->Window (utils/get-width game) (utils/get-height game))
-          (session/->Camera session/orig-camera nil nil 0 0)
-          (session/->Mouse 0 0 nil nil)
-          (session/->Keys #{}))
-        clara/fire-rules))
+        (o/insert ::session/keys
+                  {::session/pressed #{}})
+        (o/insert ::session/mouse
+                  {::session/x 0
+                   ::session/y 0
+                   ::session/world-coords nil
+                   ::session/button nil})
+        (o/insert ::session/window
+                  {::session/width (utils/get-width game)
+                   ::session/height (utils/get-height game)})
+        (o/insert ::session/camera
+                  {::session/camera session/orig-camera
+                   ::session/min-y 0
+                   ::session/max-y 0})))
   ;; load entities
   (doseq [{:keys [path instances] :as spawn-data} entities/spawn-data]
     (utils/get-image path
@@ -71,40 +65,17 @@
             (->> instances
                  (reduce
                    (fn [session instance]
-                     (let [e (entities/->entity game spawn-data image instance)]
-                       (clara/insert session
-                         (session/map->Entity (select-keys e [:id
-                                                              :kind
-                                                              :moves
-                                                              :attacks
-                                                              :specials
-                                                              :hits
-                                                              :deads
-                                                              :x
-                                                              :y
-                                                              :x-change
-                                                              :y-change
-                                                              :x-velocity
-                                                              :y-velocity]))
-                         (session/->Size (:id e) (:width e) (:height e))
-                         (session/->Direction (:id e) (:direction e))
-                         (session/->CurrentImage (:id e) (:current-image e))
-                         (session/->DistanceFromCursor (:id e) (inc move/max-cursor-distance))
-                         (session/->DistanceFromPlayer (:id e) (inc move/max-attack-distance))
-                         (session/->Health (:id e) (:health e))
-                         (session/->LastAttack (:id e) 0)
-                         (session/->Damage (:id e) (:damage e))
-                         (session/->AttackDelay (:id e) (:attack-delay e)))))
-                   session)
-                 clara/fire-rules))))))
+                     (let [e (entities/->entity game spawn-data image instance)
+                           id (swap! entities/*latest-id inc)]
+                       (-> session
+                           (o/insert id e)
+                           (o/insert id ::session/distance-from-cursor (inc move/max-cursor-distance))
+                           (o/insert id ::session/distance-from-player (inc move/max-aggro-distance)))))
+                   session)))))))
   ;; load tiled map
   (tiles/load-tiled-map game parsed-tiled-map
     (fn [tiled-map]
-      (swap! session/*session
-        (fn [session]
-          (-> session
-              (clara/insert (session/map->TiledMap tiled-map))
-              clara/fire-rules)))))
+      (swap! session/*session o/insert ::tiles/tiled-map tiled-map)))
   ;; return game map
   game)
 
@@ -117,60 +88,44 @@
     (reset! session/*reload? false)
     (init game))
   (let [session @session/*session
-        player (clara/query session :get-player)
-        enemies (clara/query session :get-enemies)
-        tiled-map (clara/query session :get-tiled-map)
-        {game-width :width game-height :height :as window} (clara/query session :get-window)
-        {:keys [camera min-y max-y]} (clara/query session :get-camera)]
+        entities (o/query-all session ::session/get-entity)
+        tiled-map (o/query session ::session/get-tiled-map)
+        {game-width :width game-height :height :as window} (o/query session ::session/get-window)
+        {:keys [camera min-y max-y]} (o/query session ::session/get-camera)]
     (when (and (pos? game-width) (pos? game-height))
       (let [scaled-tile-size (/ game-height session/vertical-tiles)]
         ;; render the background
         (c/render game (update screen-entity :viewport
                                assoc :width game-width :height game-height))
-        ;; get the current player image to display
-        (when-let [{:keys [x y]} player]
-          (let [{:keys [width height]} (clara/query session :get-size :?id (:id player))
-                current-image (clara/query session :get-current-image :?id (:id player))
-                entities (->> (:entities tiled-map)
-                              (remove (fn [[y-pos]]
-                                        (or (< y-pos min-y)
-                                            (> y-pos max-y))))
-                              (mapv (fn [y-pos-and-entity]
-                                      (update y-pos-and-entity 1
-                                              (fn [entity]
-                                                (-> entity
-                                                    (t/project game-width game-height)
-                                                    (t/scale scaled-tile-size scaled-tile-size)
-                                                    (t/invert camera))))))
-                              (cons [y (-> current-image
-                                           (t/project game-width game-height)
-                                           (t/scale scaled-tile-size scaled-tile-size)
-                                           (t/invert camera)
-                                           (t/translate x y)
-                                           (t/scale width height))])
-                              (concat (for [{:keys [id x y]} enemies
-                                            :when (< min-y y max-y)
-                                            :let [{:keys [width height]} (clara/query session :get-size :?id id)
-                                                  current-image (clara/query session :get-current-image :?id id)]]
-                                        [y (-> current-image
-                                               (t/project game-width game-height)
-                                               (t/scale scaled-tile-size scaled-tile-size)
-                                               (t/invert camera)
-                                               (t/translate x y)
-                                               (t/scale width height))]))
-                              (sort-by first <)
-                              vec)]
-            (run! (fn [[y-pos entity]]
-                    (c/render game entity))
-                  entities))))))
+        ;; render the entities
+        (let [entities (->> (:entities tiled-map)
+                            (remove (fn [[y-pos]]
+                                      (or (< y-pos min-y)
+                                          (> y-pos max-y))))
+                            (mapv (fn [y-pos-and-entity]
+                                    (update y-pos-and-entity 1
+                                            (fn [entity]
+                                              (-> entity
+                                                  (t/project game-width game-height)
+                                                  (t/scale scaled-tile-size scaled-tile-size)
+                                                  (t/invert camera))))))
+                            (concat (for [{:keys [x y width height current-image]} entities
+                                          :when (< min-y y max-y)]
+                                      [y (-> current-image
+                                             (t/project game-width game-height)
+                                             (t/scale scaled-tile-size scaled-tile-size)
+                                             (t/invert camera)
+                                             (t/translate x y)
+                                             (t/scale width height))]))
+                            (sort-by first <)
+                            vec)]
+          (run! (fn [[y-pos entity]]
+                  (c/render game entity))
+                entities)))))
   ;; update the game record
-  (swap! session/*session
-    (fn [session]
-      (when session
-        (as-> session $
-              (clara/query $ :get-game)
-              (clarax/merge session $ game)
-              (clara/fire-rules $)))))
+  (swap! session/*session o/insert ::session/time
+         {::session/total (:total-time game)
+          ::session/delta (:delta-time game)})
   ;; return the game map
   game)
 

@@ -146,12 +146,12 @@
                                 (let [tiles (mapv second tiles)]
                                   [y (reduce-kv i/assoc entity tiles)]))))]
           (callback
-            {:layers partitioned-layers
-             :width map-width
-             :height map-height
-             :entities entities}))))))
+            {::layers partitioned-layers
+             ::width map-width
+             ::height map-height
+             ::entities entities}))))))
 
-(defn touching-tile? [{:keys [layers map-width map-height]} layer-name x y width height]
+(defn touching-tile? [{:keys [::layers]} layer-name x y width height]
   (let [[x y] (screen->isometric
                 (+ x (/ width 2))
                 (+ y height))

@@ -1,5 +1,6 @@
 (ns dungeon-crawler.move
   (:require [dungeon-crawler.tiles :as tiles]
+            [dungeon-crawler.entities :as e]
             #?(:clj  [play-cljc.macros-java :refer [gl math]]
                :cljs [play-cljc.macros-js :refer-macros [gl math]])))
 
@@ -10,10 +11,6 @@
 (def min-movement-per-frame -0.5)
 (def deceleration 0.8)
 (def animation-secs 0.2)
-(def directions [:w :nw :n :ne
-                 :e :se :s :sw])
-(def velocities [[-1 0] [-1 -1] [0 -1] [1 -1]
-                 [1 0] [1 1] [0 1] [-1 1]])
 (def max-attack-distance 0.5)
 (def max-cursor-distance 0.5)
 (def min-aggro-distance (- max-attack-distance 0.1))
@@ -27,13 +24,13 @@
       velocity)))
 
 (defn get-player-velocity
-  [{:keys [width height] :as window}
+  [window-width window-height
    pressed-keys
-   mouse
+   mouse-x mouse-y mouse-button
    {:keys [x y x-velocity y-velocity]}]
-  (if (= :left (:button mouse))
-    (let [x (float (- (:x mouse) (/ width 2)))
-          y (float (- (:y mouse) (/ height 2)))
+  (if (= :left mouse-button)
+    (let [x (float (- mouse-x (/ window-width 2)))
+          y (float (- mouse-y (/ window-height 2)))
           x-adjust (if (== y 0)
                      0
                      (* max-velocity (math abs (/ x y))))
@@ -88,13 +85,13 @@
 
 (defn get-direction
   [x-velocity y-velocity]
-  (some->> velocities
+  (some->> e/velocities
            (filter (fn [[x y]]
                      (and (= x (int (math #?(:clj signum :cljs sign) (float x-velocity))))
                           (= y (int (math #?(:clj signum :cljs sign) (float y-velocity)))))))
            first
-           (.indexOf velocities)
-           (nth directions)))
+           (.indexOf e/velocities)
+           (nth e/directions)))
 
 (defn dont-overlap-tile
   [{:keys [x y x-change y-change]}
@@ -111,26 +108,21 @@
               touching-y?
               (assoc :y-velocity 0 :y old-y)))))
 
-(defn move
-  [[x-velocity y-velocity]
-   {:keys [x y] :as character}
-   {:keys [delta-time] :as game}]
+(defn move [x y x-velocity y-velocity delta-time]
   (let [x-change (-> (* x-velocity delta-time)
                      (max min-movement-per-frame)
                      (min max-movement-per-frame))
         y-change (-> (* y-velocity delta-time)
                      (max min-movement-per-frame)
-                     (min max-movement-per-frame))
-        character (assoc character
-                    :x-change x-change
-                    :y-change y-change)]
-    (if (or (not= 0 x-change) (not= 0 y-change))
-      (assoc character
-        :x-velocity (decelerate x-velocity)
-        :y-velocity (decelerate y-velocity)
-        :x (+ x x-change)
-        :y (+ y y-change))
-      character)))
+                     (min max-movement-per-frame))]
+    (when (or (not= 0 x-change)
+              (not= 0 y-change))
+      {::e/x-velocity (decelerate x-velocity)
+       ::e/y-velocity (decelerate y-velocity)
+       ::e/x-change x-change
+       ::e/y-change y-change
+       ::e/x (+ x x-change)
+       ::e/y (+ y y-change)})))
 
 (defn animate
   [{:keys [x-velocity y-velocity moves] :as character}
