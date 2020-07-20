@@ -22,27 +22,29 @@
      :min-y min-y
      :max-y max-y}))
 
-(defn update-mouse [window mouse player player-size]
-  (let [{:keys [x y]} mouse
-        {:keys [width height]} window
-        ;; convert mouse coords to (-1 to 1) coords
-        matrix (->> (m/projection-matrix width height)
-                    (m/multiply-matrices 3 (m/translation-matrix x y)))
+(defn get-mouse-world-coords
+  [{:keys [window-width window-height
+           mouse-x mouse-y
+           player-x player-y
+           player-width player-height]}]
+  (let [;; convert mouse coords to (-1 to 1) coords
+        matrix (->> (m/projection-matrix window-width window-height)
+                    (m/multiply-matrices 3 (m/translation-matrix mouse-x mouse-y)))
         wx (nth matrix 6)
         wy (* -1 (nth matrix 7))
         ;; convert to tile coords
         y-multiplier (/ vertical-tiles 2)
-        x-multiplier (* y-multiplier (/ width height))
+        x-multiplier (* y-multiplier (/ window-width window-height))
         wx (* wx x-multiplier)
         wy (* wy y-multiplier)
         ;; make mouse relative to player position
         wx (-> wx
-               (+ (:x player))
-               (- (:width player-size)))
+               (+ player-x)
+               (- player-width))
         wy (-> wy
-               (+ (:y player))
-               (- (:height player-size)))]
-   {:world-coords {:x wx :y wy}}))
+               (+ player-y)
+               (- player-height))]
+   [wx wy]))
 
 (def queries
   (o/ruleset
@@ -59,7 +61,8 @@
      [:what
       [::mouse ::x x]
       [::mouse ::y y]
-      [::mouse ::world-coords world-coords]
+      [::mouse ::world-x world-x]
+      [::mouse ::world-y world-y]
       [::mouse ::button button]]
      ::get-keys
      [:what
@@ -88,14 +91,27 @@
       [::tiles/tiled-map ::tiles/width width]
       [::tiles/tiled-map ::tiles/height height]
       [::tiles/tiled-map ::tiles/entities entities]]
-     ::get-distance-from-cursor
+     ::get-enemy-distance-from-cursor
      [:what
+      [id ::e/kind kind]
       [id ::distance-from-cursor distance]
       :when
-      (<= distance move/max-cursor-distance)]}))
+      (not= kind :player)
+      (<= distance move/max-cursor-distance)]
+     ::get-world-coord-data
+     [:what
+      [::window ::width window-width]
+      [::window ::height window-height]
+      [::mouse ::x mouse-x]
+      [::mouse ::y mouse-y]
+      [pid ::e/kind :player]
+      [pid ::e/width player-width]
+      [pid ::e/height player-height]
+      [pid ::e/x player-x]
+      [pid ::e/y player-y]]}))
 
 (defn get-enemy-under-cursor [session]
-  (when-let [distances (not-empty (o/query-all session ::get-distance-from-cursor))]
+  (when-let [distances (not-empty (o/query-all session ::get-enemy-distance-from-cursor))]
     (->> distances
          (apply min-key :distance)
          :distance)))
@@ -162,18 +178,19 @@
         (o/insert! ::camera
                    {::camera camera
                     ::min-y min-y
-                    ::max-y max-y}))]}))
+                    ::max-y max-y}))]
+     ::update-distance-from-cursor
+     [:what
+      [::mouse ::world-x world-x]
+      [::mouse ::world-y world-y]
+      [id ::e/x x]
+      [id ::e/y y]
+      :then
+      (o/insert! id ::distance-from-cursor (move/calc-distance x y world-x world-y))]}))
 
 #_
 (def rules
-  '{:update-distance-from-cursor
-    (let [mouse Mouse
-          :when (not= nil (:world-coords mouse))
-          entity Entity
-          distance DistanceFromCursor
-          :when (= (:id entity) (:id distance))]
-      (clarax/merge! distance {:value (move/calc-distance entity (:world-coords mouse))}))
-    :update-distance-from-player
+  '{:update-distance-from-player
     (let [player Entity
           :when (= (:kind player) :player)
           enemy Entity
@@ -301,15 +318,6 @@
                      (> (:value player-health) 0))]
       (clarax/merge! last-attack {:value (:total-time game)})
       (attack! game enemy enemy-damage player player-health))
-    :update-mouse-world-coords
-    (let [window Window
-          mouse Mouse
-          :when (= nil (:world-coords mouse))
-          player Entity
-          :when (= (:kind player) :player)
-          player-size Size
-          :when (= (:id player) (:id player-size))]
-      (clarax/merge! mouse (update-mouse window mouse player player-size)))
     :death
     (let [entity Entity
           health Health
