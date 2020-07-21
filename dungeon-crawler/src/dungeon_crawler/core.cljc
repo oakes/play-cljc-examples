@@ -63,7 +63,8 @@
         (o/insert ::session/camera
                   {::session/camera session/orig-camera
                    ::session/min-y 0
-                   ::session/max-y 0})))
+                   ::session/max-y 0})
+        o/fire-rules))
   ;; load entities
   (doseq [{:keys [path instances] :as spawn-data} entities/spawn-data]
     (utils/get-image path
@@ -78,12 +79,17 @@
                        (-> session
                            (o/insert id e)
                            (o/insert id ::session/distance-from-cursor (inc move/max-cursor-distance))
-                           (o/insert id ::session/distance-from-player (inc move/max-aggro-distance)))))
+                           (o/insert id ::session/distance-from-player (inc move/max-aggro-distance))
+                           o/fire-rules)))
                    session)))))))
   ;; load tiled map
   (tiles/load-tiled-map game parsed-tiled-map
     (fn [tiled-map]
-      (swap! session/*session o/insert ::tiles/tiled-map tiled-map)))
+      (swap! session/*session
+             (fn [session]
+               (-> session
+                   (o/insert ::tiles/tiled-map tiled-map)
+                   o/fire-rules)))))
   ;; return game map
   game)
 
@@ -131,9 +137,13 @@
                   (c/render game entity))
                 entities)))))
   ;; update the game record
-  (swap! session/*session o/insert ::session/time
-         {::session/total (:total-time game)
-          ::session/delta (:delta-time game)})
+  (swap! session/*session
+         (fn [session]
+           (-> session
+               (o/insert ::session/time
+                         {::session/total (:total-time game)
+                          ::session/delta (:delta-time game)})
+               o/fire-rules)))
   ;; return the game map
   game)
 
