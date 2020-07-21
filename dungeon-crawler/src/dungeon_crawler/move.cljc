@@ -128,19 +128,19 @@
   [{:keys [x-velocity y-velocity moves] :as character}
    health
    direction
-   {:keys [total-time]}
-   animations]
+   total-time]
   (or (when (<= health 0)
-        {:current-image (get-in character [:deads direction])})
+        {::e/current-image (get-in character [:deads direction])})
+      #_
       (when-let [{:keys [kind]} (first animations)]
-        {:current-image (get (get character kind) direction)})
+        {::e/current-image (get (get character kind) direction)})
       (when-let [direction (get-direction x-velocity y-velocity)]
-        {:current-image
+        {::e/current-image
          (when (or (not= x-velocity 0)
                    (not= y-velocity 0))
            (let [images (direction moves)
                  cycle-time (mod total-time (* animation-secs (count images)))]
              (nth images (int (/ cycle-time animation-secs)))))
-         :direction direction})
-      {:current-image (get-in moves [direction 0])}))
+         ::e/direction direction})
+      {::e/current-image (get-in moves [direction 0])}))
 

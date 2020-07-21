@@ -197,30 +197,24 @@
       :when
       (not= eid pid)
       :then
-      (o/insert! eid ::distance-from-player (move/calc-distance player-x player-y enemy-x enemy-y))]}))
+      (o/insert! eid ::distance-from-player (move/calc-distance player-x player-y enemy-x enemy-y))]
+     ::animate
+     [:what
+      [::time ::total total-time]
+      [id ::e/direction direction {:then false}]
+      [id ::e/health health]
+      [id ::e/current-image current-image {:then false}]
+      [id ::e/x-velocity xv]
+      [id ::e/y-velocity yv]
+      [id ::e/moves moves]
+      :then
+      (->> (move/animate {:x-velocity xv :y-velocity yv :moves moves}
+                         health direction total-time)
+           (o/insert! id))]}))
 
 #_
 (def rules
-  '{:animate
-    (let [game Game
-          entity Entity
-          direction Direction
-          :when (= (:id entity) (:id direction))
-          health Health
-          :when (= (:id entity) (:id health))
-          current-image CurrentImage
-          :when (= (:id entity) (:id current-image))
-          animation Animation
-          :accumulator (acc/all)
-          :when (= (:id entity) (:entity-id animation))]
-      (let [ret (move/animate entity (:value health) (:value direction) game animation)]
-        (some->> (:current-image ret)
-                 (hash-map :value)
-                 (clarax/merge! current-image))
-        (some->> (:direction ret)
-                 (hash-map :value)
-                 (clarax/merge! direction))))
-    :dont-overlap-tile
+  '{:dont-overlap-tile
     (let [tiled-map TiledMap
           entity Entity
           :when (or (not= 0 (:x-change entity))
