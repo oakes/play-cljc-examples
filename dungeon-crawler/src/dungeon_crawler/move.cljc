@@ -127,14 +127,14 @@
 
 (defn animate
   [{:keys [x-velocity y-velocity moves] :as character}
+   animation
    health
    direction
    total-time]
   (or (when (<= health 0)
         {::e/current-image (get-in character [:deads direction])})
-      #_
-      (when-let [{:keys [kind]} (first animations)]
-        {::e/current-image (get (get character kind) direction)})
+      (when-let [images (get character animation)]
+        {::e/current-image (get images direction)})
       (when-let [direction (get-direction x-velocity y-velocity)]
         {::e/current-image
          (when (or (not= x-velocity 0)

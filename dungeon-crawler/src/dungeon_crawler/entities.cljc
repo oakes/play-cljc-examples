@@ -79,7 +79,9 @@
        ::y-change 0
        ::x-velocity 0
        ::y-velocity 0
-       ::last-attack 0})))
+       ::last-attack 0
+       ::current-animation :none
+       ::animation-expiration 0})))
 
 (defn ->entity [game {:keys [attrs mask-size]} {:keys [data width height]} {:keys [x y]}]
   (let [{:keys [::kind]} attrs]

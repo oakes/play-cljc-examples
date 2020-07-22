@@ -46,6 +46,16 @@
                (- player-height))]
    [wx wy]))
 
+(defn get-enemy-under-cursor [session]
+  (when-let [distances (not-empty (o/query-all session ::get-enemy-distance-from-cursor))]
+    (apply min-key :distance distances)))
+
+(defn get-enemy-near-player [session]
+  (when-let [distances (not-empty (o/query-all session ::get-enemy-distance-from-player))]
+    (apply min-key :distance distances)))
+
+(declare restart! attack!)
+
 (def queries
   (o/ruleset
     {::get-window
@@ -70,18 +80,12 @@
      ::get-entity
      [:what
       [id ::e/kind kind]
-      [id ::e/moves moves]
-      [id ::e/attacks attacks]
-      [id ::e/specials specials]
-      [id ::e/hits hits]
-      [id ::e/deads deads]
       [id ::e/x x]
       [id ::e/y y]
       [id ::e/x-change x-change]
       [id ::e/y-change y-change]
       [id ::e/x-velocity x-velocity]
       [id ::e/y-velocity y-velocity]
-      [id ::e/direction direction]
       [id ::e/current-image current-image]
       [id ::e/width width]
       [id ::e/height height]]
@@ -94,10 +98,25 @@
      ::get-enemy-distance-from-cursor
      [:what
       [id ::e/kind kind]
+      [id ::e/health health]
+      [id ::e/x x]
+      [id ::e/y y]
       [id ::distance-from-cursor distance]
       :when
       (not= kind :player)
+      (> health 0)
       (<= distance move/max-cursor-distance)]
+     ::get-enemy-distance-from-player
+     [:what
+      [id ::e/kind kind]
+      [id ::e/health health]
+      [id ::e/x x]
+      [id ::e/y y]
+      [id ::distance-from-player distance]
+      :when
+      (not= kind :player)
+      (> health 0)
+      (<= distance move/max-attack-distance)]
      ::get-world-coord-data
      [:what
       [::window ::width window-width]
@@ -109,12 +128,6 @@
       [pid ::e/height player-height]
       [pid ::e/x player-x]
       [pid ::e/y player-y]]}))
-
-(defn get-enemy-under-cursor [session]
-  (when-let [distances (not-empty (o/query-all session ::get-enemy-distance-from-cursor))]
-    (->> distances
-         (apply min-key :distance)
-         :distance)))
 
 (def rules
   (o/ruleset
@@ -207,10 +220,24 @@
       [id ::e/x-velocity xv]
       [id ::e/y-velocity yv]
       [id ::e/moves moves]
+      [id ::e/attacks attacks]
+      [id ::e/hits hits]
+      [id ::e/deads deads]
+      [id ::e/current-animation animation]
       :then
-      (->> (move/animate {:x-velocity xv :y-velocity yv :moves moves}
-                         health direction total-time)
+      (->> (move/animate {:x-velocity xv :y-velocity yv :moves moves :attacks attacks :hits hits :deads deads}
+                         animation health direction total-time)
            (o/insert! id))]
+     ::remove-expired-animations
+     [:what
+      [::time ::total total-time]
+      [id ::e/current-animation animation {:then false}]
+      [id ::e/animation-expiration expiration]
+      :when
+      (not= :none animation)
+      (> total-time expiration)
+      :then
+      (o/insert! id ::e/current-animation :none)]
      ::dont-overlap-tile
      [:what
       [id ::e/x x]
@@ -225,89 +252,31 @@
           (not (== 0 y-change)))
       :then
       (some->> (move/dont-overlap-tile x y x-change y-change width height layers)
-               (o/insert! id))]}))
+               (o/insert! id))]
+     ::player-attack
+     [:what
+      [::time ::total total-time]
+      [::keys ::pressed pressed]
+      [::mouse ::button button]
+      [pid ::e/kind :player]
+      [pid ::e/damage player-damage]
+      [pid ::e/attack-delay attack-delay]
+      [pid ::e/last-attack last-attack]
+      [pid ::e/x x]
+      [pid ::e/y y]
+      :when
+      (or (contains? pressed :space)
+          (= button :right))
+      (-> total-time
+          (- last-attack)
+          (>= attack-delay))
+      :then
+      (some->> (get-enemy-near-player o/*session*)
+               (attack! total-time {:id pid :damage player-damage :kind :player :x x :y y}))]}))
 
 #_
 (def rules
-  '{:dont-overlap-tile
-    (let [tiled-map TiledMap
-          entity Entity
-          :when (or (not= 0 (:x-change entity))
-                    (not= 0 (:y-change entity)))
-          size Size
-          :when (= (:id entity) (:id size))]
-      (some->> (move/dont-overlap-tile entity size tiled-map)
-               (clarax/merge! entity)))
-    :player-attack-with-key
-    (let [game Game
-          player Entity
-          :when (= (:kind player) :player)
-          player-damage Damage
-          :when (= (:id player) (:id player-damage))
-          attack-delay AttackDelay
-          :when (= (:id player) (:id attack-delay))
-          last-attack LastAttack
-          :when (and (= (:id player) (:id last-attack))
-                     (-> (:total-time game)
-                         (- (:value last-attack))
-                         (>= (:value attack-delay))))
-          direction Direction
-          :when (= (:id direction) (:id player))
-          keys Keys
-          :when (contains? (:pressed keys) :space)
-          distance DistanceFromPlayer
-          :accumulator (acc/min :value :returns-fact true)
-          :when (and (<= (:value distance) move/max-attack-distance)
-                     (not= (:id distance) (:id player)))
-          target Entity
-          :when (= (:id target) (:id distance))
-          target-health Health
-          :when (= (:id target) (:id target-health))]
-      (clarax/merge! last-attack {:value (:total-time game)})
-      (attack! game player player-damage target target-health)
-      (some->> (move/get-direction
-                 (- (:x target) (:x player))
-                 (- (:y target) (:y player)))
-               (hash-map :value)
-               (clarax/merge! direction)))
-    :player-attack-with-mouse
-    (let [game Game
-          player Entity
-          :when (= (:kind player) :player)
-          player-damage Damage
-          :when (= (:id player) (:id player-damage))
-          attack-delay AttackDelay
-          :when (= (:id player) (:id attack-delay))
-          last-attack LastAttack
-          :when (and (= (:id player) (:id last-attack))
-                     (-> (:total-time game)
-                         (- (:value last-attack))
-                         (>= (:value attack-delay))))
-          direction Direction
-          :when (= (:id direction) (:id player))
-          mouse Mouse
-          :when (and (= (:button mouse) :right)
-                     (not= nil (:world-coords mouse)))
-          distance-from-cursor DistanceFromCursor
-          :accumulator (acc/min :value :returns-fact true)
-          :when (and (<= (:value distance-from-cursor) move/max-cursor-distance)
-                     (not= (:id distance-from-cursor) (:id player)))
-          target Entity
-          :when (= (:id target) (:id distance-from-cursor))
-          target-health Health
-          :when (= (:id target) (:id target-health))
-          distance-from-player DistanceFromPlayer
-          :when (and (<= (:value distance-from-player) move/max-attack-distance)
-                     (= (:id distance-from-player) (:id target)))]
-      (clarax/merge! last-attack {:value (:total-time game)})
-      (attack! game player player-damage target target-health)
-      (let [{:keys [x y]} (:world-coords mouse)]
-        (some->> (move/get-direction
-                   (- x (:x player))
-                   (- y (:y player)))
-                 (hash-map :value)
-                 (clarax/merge! direction))))
-    :enemy-attack
+  '{:enemy-attack
     (let [game Game
           distance DistanceFromPlayer
           :when (<= (:value distance) move/max-attack-distance)
@@ -369,19 +338,22 @@
             (reset! *reload? true))
      :cljs (js/setTimeout #(reset! *reload? true) restart-delay)))
 
-#_
-(defn attack! [game source source-damage target target-health]
-  (let [duration (+ (:total-time game) animation-duration)
+(defn attack! [total-time source target]
+  (let [duration (+ total-time animation-duration)
         sound-file (if (= (:kind source) :player)
                      "monsterhurt.wav"
                      "playerhurt.wav")]
     (utils/play-sound! sound-file)
-    (->> duration
-         (->Animation (:id source) :attacks)
-         clara/insert-unconditional!)
-    (->> duration
-         (->Animation (:id target) :hits)
-         clara/insert-unconditional!)
-    (clarax/merge! target-health {:value (- (:value target-health)
-                                            (:value source-damage))})))
+    (o/insert! (:id source)
+               {::e/current-animation :attacks
+                ::e/animation-expiration duration
+                ::e/last-attack total-time})
+    (when-let [new-direction (move/get-direction
+                               (- (:x target) (:x source))
+                               (- (:y target) (:y source)))]
+      (o/insert! (:id source) ::e/direction new-direction))
+    (o/insert! (:id target)
+               {::e/current-animation :hits
+                ::e/animation-expiration duration
+                ::e/health (- (:health target) (:damage source))})))
 
