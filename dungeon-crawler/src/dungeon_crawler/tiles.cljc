@@ -151,7 +151,7 @@
              ::height map-height
              ::entities entities}))))))
 
-(defn touching-tile? [{:keys [::layers]} layer-name x y width height]
+(defn touching-tile? [layers layer-name x y width height]
   (let [[x y] (screen->isometric
                 (+ x (/ width 2))
                 (+ y height))

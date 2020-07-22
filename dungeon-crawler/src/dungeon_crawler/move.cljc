@@ -94,19 +94,20 @@
            (nth e/directions)))
 
 (defn dont-overlap-tile
-  [{:keys [x y x-change y-change]}
-   {:keys [width height]}
-   tiled-map]
+  [x y
+   x-change y-change
+   width height
+   tiled-map-layers]
   (let [old-x (- x x-change)
         old-y (- y y-change)
-        touching-x? (tiles/touching-tile? tiled-map "walls" x old-y width height)
-        touching-y? (tiles/touching-tile? tiled-map "walls" old-x y width height)]
+        touching-x? (tiles/touching-tile? tiled-map-layers "walls" x old-y width height)
+        touching-y? (tiles/touching-tile? tiled-map-layers "walls" old-x y width height)]
     (when (or touching-x? touching-y?)
-      (cond-> {:x-change 0 :y-change 0}
+      (cond-> {::e/x-change 0 ::e/y-change 0}
               touching-x?
-              (assoc :x-velocity 0 :x old-x)
+              (assoc ::e/x-velocity 0 ::e/x old-x)
               touching-y?
-              (assoc :y-velocity 0 :y old-y)))))
+              (assoc ::e/y-velocity 0 ::e/y old-y)))))
 
 (defn move [x y x-velocity y-velocity delta-time]
   (let [x-change (-> (* x-velocity delta-time)

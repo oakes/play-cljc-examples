@@ -210,7 +210,22 @@
       :then
       (->> (move/animate {:x-velocity xv :y-velocity yv :moves moves}
                          health direction total-time)
-           (o/insert! id))]}))
+           (o/insert! id))]
+     ::dont-overlap-tile
+     [:what
+      [id ::e/x x]
+      [id ::e/y y]
+      [id ::e/x-change x-change]
+      [id ::e/y-change y-change]
+      [id ::e/width width]
+      [id ::e/height height]
+      [::tiles/tiled-map ::tiles/layers layers]
+      :when
+      (or (not (== 0 x-change))
+          (not (== 0 y-change)))
+      :then
+      (some->> (move/dont-overlap-tile x y x-change y-change width height layers)
+               (o/insert! id))]}))
 
 #_
 (def rules
