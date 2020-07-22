@@ -16,7 +16,8 @@
   (swap! session/*session
     (fn [session]
       (let [pressed-keys (-> session
-                             (o/query ::session/get-keys)
+                             (o/query-all ::session/get-keys)
+                             first
                              :pressed
                              (f k))]
         (o/insert session ::session/keys ::session/pressed pressed-keys)))))
@@ -27,7 +28,7 @@
 (defn update-mouse-coords! [x y]
   (-> (swap! session/*session
              (fn [session]
-               (let [coord-data (o/query session ::session/get-world-coord-data)
+               (let [coord-data (first (o/query-all session ::session/get-world-coord-data))
                      [wx wy] (session/get-mouse-world-coords coord-data)]
                  (o/insert session
                            ::session/mouse
@@ -103,9 +104,9 @@
     (init game))
   (let [session @session/*session
         entities (o/query-all session ::session/get-entity)
-        tiled-map (o/query session ::session/get-tiled-map)
-        {game-width :width game-height :height :as window} (o/query session ::session/get-window)
-        {:keys [camera min-y max-y]} (o/query session ::session/get-camera)]
+        tiled-map (first (o/query-all session ::session/get-tiled-map))
+        {game-width :width game-height :height :as window} (first (o/query-all session ::session/get-window))
+        {:keys [camera min-y max-y]} (first (o/query-all session ::session/get-camera))]
     (when (and (pos? game-width) (pos? game-height))
       (let [scaled-tile-size (/ game-height session/vertical-tiles)]
         ;; render the background
