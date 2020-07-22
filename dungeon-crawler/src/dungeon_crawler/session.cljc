@@ -47,12 +47,21 @@
    [wx wy]))
 
 (defn get-enemy-under-cursor [session]
-  (when-let [distances (not-empty (o/query-all session ::get-enemy-distance-from-cursor))]
-    (apply min-key :distance distances)))
+  (when-let [enemies (not-empty (o/query-all session ::get-enemy-distance-from-cursor))]
+    (apply min-key :distance enemies)))
 
 (defn get-enemy-near-player [session]
-  (when-let [distances (not-empty (o/query-all session ::get-enemy-distance-from-player))]
-    (apply min-key :distance distances)))
+  (when-let [enemies (not-empty (o/query-all session ::get-enemy-distance-from-player))]
+    (apply min-key :distance enemies)))
+
+(defn get-enemy-near-player-that-can-attack [session total-time]
+  (when-let [enemies (not-empty (o/query-all session ::get-enemy-distance-from-player))]
+    (when-let [enemies (not-empty (filter (fn [{:keys [last-attack attack-delay]}]
+                                            (-> total-time
+                                                (- last-attack)
+                                                (>= attack-delay)))
+                                          enemies))]
+      (apply min-key :distance enemies))))
 
 (declare restart! attack!)
 
@@ -113,6 +122,9 @@
       [id ::e/x x]
       [id ::e/y y]
       [id ::distance-from-player distance]
+      [id ::e/last-attack last-attack]
+      [id ::e/attack-delay attack-delay]
+      [id ::e/damage damage]
       :when
       (not= kind :player)
       (> health 0)
@@ -259,7 +271,7 @@
       [::keys ::pressed pressed]
       [::mouse ::button button]
       [pid ::e/kind :player]
-      [pid ::e/damage player-damage]
+      [pid ::e/damage damage]
       [pid ::e/attack-delay attack-delay]
       [pid ::e/last-attack last-attack]
       [pid ::e/x x]
@@ -271,35 +283,22 @@
           (- last-attack)
           (>= attack-delay))
       :then
-      (some->> (get-enemy-near-player o/*session*)
-               (attack! total-time {:id pid :damage player-damage :kind :player :x x :y y}))]}))
+      (when-let [enemy (get-enemy-near-player o/*session*)]
+        (attack! total-time {:id pid :damage damage :kind :player :x x :y y} enemy))]
+     ::enemy-attack
+     [:what
+      [::time ::total total-time]
+      [pid ::e/kind :player]
+      [pid ::e/health health]
+      [pid ::e/x x]
+      [pid ::e/y y]
+      :then
+      (when-let [enemy (get-enemy-near-player-that-can-attack o/*session* total-time)]
+        (attack! total-time enemy {:id pid :health health :x x :y y}))]}))
 
 #_
 (def rules
-  '{:enemy-attack
-    (let [game Game
-          distance DistanceFromPlayer
-          :when (<= (:value distance) move/max-attack-distance)
-          enemy Entity
-          :when (and (not= (:kind enemy) :player)
-                     (= (:id enemy) (:id distance)))
-          enemy-damage Damage
-          :when (= (:id enemy) (:id enemy-damage))
-          attack-delay AttackDelay
-          :when (= (:id enemy) (:id attack-delay))
-          last-attack LastAttack
-          :when (and (= (:id enemy) (:id last-attack))
-                     (-> (:total-time game)
-                         (- (:value last-attack))
-                         (>= (:value attack-delay))))
-          player Entity
-          :when (= (:kind player) :player)
-          player-health Health
-          :when (and (= (:id player) (:id player-health))
-                     (> (:value player-health) 0))]
-      (clarax/merge! last-attack {:value (:total-time game)})
-      (attack! game enemy enemy-damage player player-health))
-    :death
+  '{:death
     (let [entity Entity
           health Health
           :when (and (= (:id entity) (:id health))
@@ -312,12 +311,7 @@
       (clara/retract! distance-from-cursor)
       (utils/play-sound! "death.wav")
       (when (= (:kind entity) :player)
-        (restart!)))
-    :remove-expired-animations
-    (let [game Game
-          animation Animation
-          :when (<= (:expire-time animation) (:total-time game))]
-      (clara/retract! animation))})
+        (restart!)))})
 
 (def initial-session
   (reduce o/add-rule (o/->session)
