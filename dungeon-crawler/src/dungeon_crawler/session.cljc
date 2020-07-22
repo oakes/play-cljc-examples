@@ -294,24 +294,19 @@
       [pid ::e/y y]
       :then
       (when-let [enemy (get-enemy-near-player-that-can-attack o/*session* total-time)]
-        (attack! total-time enemy {:id pid :health health :x x :y y}))]}))
-
-#_
-(def rules
-  '{:death
-    (let [entity Entity
-          health Health
-          :when (and (= (:id entity) (:id health))
-                     (<= (:value health) 0))
-          distance-from-player DistanceFromPlayer
-          :when (= (:id entity) (:id distance-from-player))
-          distance-from-cursor DistanceFromCursor
-          :when (= (:id entity) (:id distance-from-cursor))]
-      (clara/retract! distance-from-player)
-      (clara/retract! distance-from-cursor)
+        (attack! total-time enemy {:id pid :health health :x x :y y}))]
+     ::death
+     [:what
+      [id ::e/kind kind]
+      [id ::e/health health]
+      :when
+      (<= health 0)
+      :then
+      (o/retract! id ::e/health)
+      (o/retract! id ::distance-from-cursor)
       (utils/play-sound! "death.wav")
-      (when (= (:kind entity) :player)
-        (restart!)))})
+      (when (= kind :player)
+        (restart!))]}))
 
 (def initial-session
   (reduce o/add-rule (o/->session)
