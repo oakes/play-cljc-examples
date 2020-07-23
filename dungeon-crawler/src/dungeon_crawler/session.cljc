@@ -15,10 +15,6 @@
 (defonce *session (atom nil))
 (defonce *reload? (atom false))
 
-;; when this ns is reloaded, reload the session
-(when @*session
-  (reset! *reload? true))
-
 (def restart-delay 1000)
 
 (defn restart! []
@@ -343,4 +339,8 @@
 (def initial-session
   (reduce o/add-rule (o/->session)
           (concat queries rules)))
+
+;; when this ns is reloaded, reload the session
+(when @*session
+  (reset! *reload? true))
 
