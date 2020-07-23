@@ -12,6 +12,40 @@
 (def vertical-tiles 7)
 (def animation-duration 0.5)
 
+(defonce *session (atom nil))
+(defonce *reload? (atom false))
+
+;; when this ns is reloaded, reload the session
+(when @*session
+  (reset! *reload? true))
+
+(def restart-delay 1000)
+
+(defn restart! []
+  #?(:clj (future
+            (Thread/sleep restart-delay)
+            (reset! *reload? true))
+     :cljs (js/setTimeout #(reset! *reload? true) restart-delay)))
+
+(defn attack! [total-time source target]
+  (let [duration (+ total-time animation-duration)
+        sound-file (if (= (:kind source) :player)
+                     "monsterhurt.wav"
+                     "playerhurt.wav")]
+    (utils/play-sound! sound-file)
+    (o/insert! (:id source)
+               {::e/current-animation :attacks
+                ::e/animation-expiration duration
+                ::e/last-attack total-time})
+    (when-let [new-direction (move/get-direction
+                               (- (:x target) (:x source))
+                               (- (:y target) (:y source)))]
+      (o/insert! (:id source) ::e/direction new-direction))
+    (o/insert! (:id target)
+               {::e/current-animation :hits
+                ::e/animation-expiration duration
+                ::e/health (- (:health target) (:damage source))})))
+
 (defn update-camera [game-width game-height x y]
   (let [scaled-tile-size (/ game-height vertical-tiles)
         offset-x (/ game-width 2 scaled-tile-size)
@@ -62,8 +96,6 @@
                                                 (>= attack-delay)))
                                           enemies))]
       (apply min-key :distance enemies))))
-
-(declare restart! attack!)
 
 (def queries
   (o/ruleset
@@ -311,38 +343,4 @@
 (def initial-session
   (reduce o/add-rule (o/->session)
           (concat queries rules)))
-
-(defonce *session (atom nil))
-(defonce *reload? (atom false))
-
-;; when this ns is reloaded, reload the session
-(when @*session
-  (reset! *reload? true))
-
-(def restart-delay 1000)
-
-(defn restart! []
-  #?(:clj (future
-            (Thread/sleep restart-delay)
-            (reset! *reload? true))
-     :cljs (js/setTimeout #(reset! *reload? true) restart-delay)))
-
-(defn attack! [total-time source target]
-  (let [duration (+ total-time animation-duration)
-        sound-file (if (= (:kind source) :player)
-                     "monsterhurt.wav"
-                     "playerhurt.wav")]
-    (utils/play-sound! sound-file)
-    (o/insert! (:id source)
-               {::e/current-animation :attacks
-                ::e/animation-expiration duration
-                ::e/last-attack total-time})
-    (when-let [new-direction (move/get-direction
-                               (- (:x target) (:x source))
-                               (- (:y target) (:y source)))]
-      (o/insert! (:id source) ::e/direction new-direction))
-    (o/insert! (:id target)
-               {::e/current-animation :hits
-                ::e/animation-expiration duration
-                ::e/health (- (:health target) (:damage source))})))
 
