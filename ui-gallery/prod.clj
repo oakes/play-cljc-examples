@@ -54,7 +54,6 @@
 
 (defmethod task nil
   [_]
-  (require 'ui-gallery.start)
   (let [out-file "resources/public/main.js"
         out-dir "resources/public/main.out"]
     (println "Building main.js")

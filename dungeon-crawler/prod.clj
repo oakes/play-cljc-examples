@@ -57,7 +57,6 @@
 
 (defmethod task nil
   [_]
-  (require 'dungeon-crawler.start)
   (let [out-file "resources/public/main.js"
         out-dir "resources/public/main.out"]
     (println "Building main.js")
