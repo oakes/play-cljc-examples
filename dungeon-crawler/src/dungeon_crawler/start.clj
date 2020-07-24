@@ -13,7 +13,7 @@
   (condp = mousecode
     GLFW/GLFW_MOUSE_BUTTON_LEFT :left
     GLFW/GLFW_MOUSE_BUTTON_RIGHT :right
-    nil))
+    :none))
 
 (defn on-mouse-move! [window xpos ypos]
   (let [*fb-width (MemoryUtil/memAllocInt 1)
@@ -42,8 +42,9 @@
             GLFW/GLFW_ARROW_CURSOR))))))
 
 (defn on-mouse-click! [window button action mods]
-  (c/update-mouse-button! (when (= action GLFW/GLFW_PRESS)
-                            (mousecode->keyword button))))
+  (c/update-mouse-button! (if (= action GLFW/GLFW_PRESS)
+                            (mousecode->keyword button)
+                            :none)))
 
 (defn keycode->keyword [keycode]
   (condp = keycode
