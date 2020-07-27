@@ -65,7 +65,13 @@
    :clear {:color [(/ 173 255) (/ 216 255) (/ 230 255) 1] :depth 1}})
 
 (defn tick [game]
-  (let [{:keys [pressed-keys
+  (let [state (swap! *state
+                (fn [state]
+                  (->> state
+                       (move/move game)
+                       (move/prevent-move)
+                       (move/animate game))))
+        {:keys [pressed-keys
                 player-x
                 player-y
                 player-width
@@ -75,8 +81,7 @@
                 player-image-key
                 tiled-map
                 tiled-map-entity
-                camera]
-         :as state} @*state
+                camera]} state
         game-width (utils/get-width game)
         game-height (utils/get-height game)]
     (when (and (pos? game-width) (pos? game-height))
@@ -108,14 +113,7 @@
                 (t/scale (cond-> player-width
                                  (= direction :left)
                                  (* -1))
-                  player-height)))
-          ;; change the state to move the player
-          (swap! *state
-            (fn [state]
-              (->> state
-                   (move/move game)
-                   (move/prevent-move)
-                   (move/animate game))))))))
+                  player-height)))))))
   ;; return the game map
   game)
 

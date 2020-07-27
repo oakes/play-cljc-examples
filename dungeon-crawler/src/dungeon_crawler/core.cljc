@@ -102,7 +102,15 @@
   (when @session/*reload?
     (reset! session/*reload? false)
     (init game))
-  (let [session @session/*session
+  (let [;; update the time and fire the rules
+        session (swap! session/*session
+                  (fn [session]
+                    (-> session
+                        (o/insert ::session/time
+                                  {::session/total (:total-time game)
+                                   ::session/delta (:delta-time game)})
+                        o/fire-rules)))
+        ;; run queries
         entities (o/query-all session ::session/get-entity)
         tiled-map (first (o/query-all session ::session/get-tiled-map))
         {game-width :width game-height :height :as window} (first (o/query-all session ::session/get-window))
@@ -137,14 +145,6 @@
           (run! (fn [[y-pos entity]]
                   (c/render game entity))
                 entities)))))
-  ;; update the game record
-  (swap! session/*session
-         (fn [session]
-           (-> session
-               (o/insert ::session/time
-                         {::session/total (:total-time game)
-                          ::session/delta (:delta-time game)})
-               o/fire-rules)))
   ;; return the game map
   game)
 

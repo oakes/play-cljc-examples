@@ -38,12 +38,13 @@
    :clear {:color [(/ 173 255) (/ 216 255) (/ 230 255) 1] :depth 1}})
 
 (defn tick [game]
-  (let [game-width (utils/get-width game)
-        game-height (utils/get-height game)
+  (let [state (swap! *state update :counter inc)
         {:keys [font-entity
                 static-entity
                 dynamic-entity
-                counter]} @*state]
+                counter]} state
+        game-width (utils/get-width game)
+        game-height (utils/get-height game)]
     (when (and (pos? game-width) (pos? game-height))
       ;; render the blue background
       (c/render game (update screen-entity :viewport
@@ -80,7 +81,6 @@
                                  [line-num char-num (chars/crop-char font-entity ch)]))
                              (t/project game-width game-height)
                              (t/translate 0 200)))))))
-  (swap! *state update :counter inc)
   ;; return the game map
   game)
 
