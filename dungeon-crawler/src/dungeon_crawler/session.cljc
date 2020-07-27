@@ -99,11 +99,13 @@
      [:what
       [::window ::width width]
       [::window ::height height]]
+
      ::get-camera
      [:what
       [::camera ::camera camera]
       [::camera ::min-y min-y]
       [::camera ::max-y max-y]]
+
      ::get-mouse
      [:what
       [::mouse ::x x]
@@ -111,9 +113,11 @@
       [::mouse ::world-x world-x]
       [::mouse ::world-y world-y]
       [::mouse ::button button]]
+
      ::get-keys
      [:what
       [::keys ::pressed pressed]]
+
      ::get-entity
      [:what
       [id ::e/kind kind]
@@ -126,12 +130,14 @@
       [id ::e/current-image current-image]
       [id ::e/width width]
       [id ::e/height height]]
+
      ::get-tiled-map
      [:what
       [::tiles/tiled-map ::tiles/layers layers]
       [::tiles/tiled-map ::tiles/width width]
       [::tiles/tiled-map ::tiles/height height]
       [::tiles/tiled-map ::tiles/entities entities]]
+
      ::get-enemy-distance-from-cursor
      [:what
       [id ::e/kind kind]
@@ -143,6 +149,7 @@
       (not= kind :player)
       (> health 0)
       (<= distance move/max-cursor-distance)]
+
      ::get-enemy-distance-from-player
      [:what
       [id ::e/kind kind]
@@ -157,6 +164,7 @@
       (not= kind :player)
       (> health 0)
       (<= distance move/max-attack-distance)]
+
      ::get-world-coord-data
      [:what
       [::window ::width window-width]
@@ -196,6 +204,7 @@
             [xv yv] (move/get-enemy-velocity enemy player player-health distance-from-player)]
         (some->> (move/move enemy-x enemy-y xv yv delta-time)
                  (o/insert! eid)))]
+
      ::move-player
      [:what
       [::time ::delta delta-time]
@@ -218,6 +227,7 @@
             [xv yv] (move/get-player-velocity width height pressed mouse-x mouse-y mouse-button player)]
         (some->> (move/move player-x player-y xv yv delta-time)
                  (o/insert! pid)))]
+
      ::update-camera
      [:what
       [::window ::width width]
@@ -232,6 +242,7 @@
                    {::camera camera
                     ::min-y min-y
                     ::max-y max-y}))]
+
      ::update-distance-from-cursor
      [:what
       [::mouse ::world-x world-x]
@@ -240,6 +251,7 @@
       [id ::e/y y]
       :then
       (o/insert! id ::distance-from-cursor (move/calc-distance x y world-x world-y))]
+
      ::update-distance-from-player
      [:what
       [pid ::e/kind :player]
@@ -251,6 +263,7 @@
       (not= eid pid)
       :then
       (o/insert! eid ::distance-from-player (move/calc-distance player-x player-y enemy-x enemy-y))]
+
      ::animate
      [:what
       [::time ::total total-time]
@@ -268,6 +281,7 @@
       (->> (move/animate {:x-velocity xv :y-velocity yv :moves moves :attacks attacks :hits hits :deads deads}
                          animation health direction total-time)
            (o/insert! id))]
+
      ::remove-expired-animations
      [:what
       [::time ::total total-time]
@@ -278,6 +292,7 @@
       (> total-time expiration)
       :then
       (o/insert! id ::e/current-animation :none)]
+
      ::dont-overlap-tile
      [:what
       [id ::e/x x]
@@ -293,6 +308,7 @@
       :then
       (some->> (move/dont-overlap-tile x y x-change y-change width height layers)
                (o/insert! id))]
+
      ::player-attack
      [:what
       [::time ::total total-time]
@@ -313,6 +329,7 @@
       :then
       (when-let [enemy (get-enemy-near-player o/*session*)]
         (attack! total-time {:id pid :damage damage :kind :player :x x :y y} enemy))]
+
      ::enemy-attack
      [:what
       [::time ::total total-time]
@@ -323,6 +340,7 @@
       :then
       (when-let [enemy (get-enemy-near-player-that-can-attack o/*session* total-time)]
         (attack! total-time enemy {:id pid :health health :x x :y y}))]
+
      ::death
      [:what
       [id ::e/kind kind]
