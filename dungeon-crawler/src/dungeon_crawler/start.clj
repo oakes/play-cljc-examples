@@ -147,13 +147,24 @@
 
 (defn start [game window]
   (let [handle (:handle window)
-        game (assoc game :delta-time 0 :total-time (GLFW/glfwGetTime))]
+        game (assoc game
+               :delta-time 0
+               :total-time (GLFW/glfwGetTime)
+               :prev-time (GLFW/glfwGetTime)
+               :frame-count 0)]
     (GLFW/glfwShowWindow handle)
     (c/init game)
     (listen-for-events window)
     (loop [game game]
       (when-not (GLFW/glfwWindowShouldClose handle)
         (let [ts (GLFW/glfwGetTime)
+              game (if (>= (- ts (:prev-time game)) 1)
+                     (do
+                       (println "FPS:" (:frame-count game))
+                       (assoc game
+                              :frame-count 0
+                              :prev-time ts))
+                     (update game :frame-count inc))
               game (assoc game
                           :delta-time (- ts (:total-time game))
                           :total-time ts)
