@@ -23,24 +23,26 @@
             (reset! *reload? true))
      :cljs (js/setTimeout #(reset! *reload? true) restart-delay)))
 
-(defn attack! [total-time source target]
+(defn attack [session total-time source target]
   (let [duration (+ total-time animation-duration)
         sound-file (if (= (:kind source) :player)
                      "monsterhurt.wav"
-                     "playerhurt.wav")]
+                     "playerhurt.wav")
+        new-direction (move/get-direction
+                        (- (:x target) (:x source))
+                        (- (:y target) (:y source)))]
     (utils/play-sound! sound-file)
-    (o/insert! (:id source)
-               {::e/current-animation :attacks
-                ::e/animation-expiration duration
-                ::e/last-attack total-time})
-    (when-let [new-direction (move/get-direction
-                               (- (:x target) (:x source))
-                               (- (:y target) (:y source)))]
-      (o/insert! (:id source) ::e/direction new-direction))
-    (o/insert! (:id target)
-               {::e/current-animation :hits
-                ::e/animation-expiration duration
-                ::e/health (- (:health target) (:damage source))})))
+    (-> session
+        (o/insert (:id source)
+                  {::e/current-animation :attacks
+                   ::e/animation-expiration duration
+                   ::e/last-attack total-time})
+        (o/insert (:id target)
+                  {::e/current-animation :hits
+                   ::e/animation-expiration duration
+                   ::e/health (- (:health target) (:damage source))})
+        (cond-> new-direction
+                (o/insert (:id source) ::e/direction new-direction)))))
 
 (defn update-camera [game-width game-height x y]
   (let [scaled-tile-size (/ game-height vertical-tiles)
@@ -203,7 +205,8 @@
             player {:x player-x :y player-y :x-velocity player-x-velocity :y-velocity player-y-velocity}
             [xv yv] (move/get-enemy-velocity enemy player player-health distance-from-player)]
         (some->> (move/move enemy-x enemy-y xv yv delta-time)
-                 (o/insert! eid)))]
+                 (o/insert o/*session* eid)
+                 o/reset!))]
 
      ::move-player
      [:what
@@ -226,7 +229,8 @@
       (let [player {:x player-x :y player-y :x-velocity player-x-velocity :y-velocity player-y-velocity}
             [xv yv] (move/get-player-velocity width height pressed mouse-x mouse-y mouse-button player)]
         (some->> (move/move player-x player-y xv yv delta-time)
-                 (o/insert! pid)))]
+                 (o/insert o/*session* pid)
+                 o/reset!))]
 
      ::update-camera
      [:what
@@ -238,10 +242,12 @@
       [::camera ::camera camera {:then false}]
       :then
       (let [{:keys [camera min-y max-y]} (update-camera width height x y)]
-        (o/insert! ::camera
-                   {::camera camera
-                    ::min-y min-y
-                    ::max-y max-y}))]
+        (-> o/*session*
+            (o/insert ::camera
+                      {::camera camera
+                       ::min-y min-y
+                       ::max-y max-y})
+            o/reset!))]
 
      ::update-distance-from-cursor
      [:what
@@ -250,7 +256,9 @@
       [id ::e/x x]
       [id ::e/y y]
       :then
-      (o/insert! id ::distance-from-cursor (move/calc-distance x y world-x world-y))]
+      (-> o/*session*
+          (o/insert id ::distance-from-cursor (move/calc-distance x y world-x world-y))
+          o/reset!)]
 
      ::update-distance-from-player
      [:what
@@ -262,7 +270,9 @@
       :when
       (not= eid pid)
       :then
-      (o/insert! eid ::distance-from-player (move/calc-distance player-x player-y enemy-x enemy-y))]
+      (-> o/*session*
+          (o/insert eid ::distance-from-player (move/calc-distance player-x player-y enemy-x enemy-y))
+          o/reset!)]
 
      ::animate
      [:what
@@ -280,7 +290,8 @@
       :then
       (->> (move/animate {:x-velocity xv :y-velocity yv :moves moves :attacks attacks :hits hits :deads deads}
                          animation health direction total-time)
-           (o/insert! id))]
+           (o/insert o/*session* id)
+           o/reset!)]
 
      ::remove-expired-animations
      [:what
@@ -291,7 +302,9 @@
       (not= :none animation)
       (> total-time expiration)
       :then
-      (o/insert! id ::e/current-animation :none)]
+      (-> o/*session*
+          (o/insert id ::e/current-animation :none)
+          o/reset!)]
 
      ::dont-overlap-tile
      [:what
@@ -307,7 +320,8 @@
           (not (== 0 y-change)))
       :then
       (some->> (move/dont-overlap-tile x y x-change y-change width height layers)
-               (o/insert! id))]
+               (o/insert o/*session* id)
+               o/reset!)]
 
      ::player-attack
      [:what
@@ -328,7 +342,7 @@
           (>= attack-delay))
       :then
       (when-let [enemy (get-enemy-near-player o/*session*)]
-        (attack! total-time {:id pid :damage damage :kind :player :x x :y y} enemy))]
+        (o/reset! (attack o/*session* total-time {:id pid :damage damage :kind :player :x x :y y} enemy)))]
 
      ::enemy-attack
      [:what
@@ -339,7 +353,7 @@
       [pid ::e/y y]
       :then
       (when-let [enemy (get-enemy-near-player-that-can-attack o/*session* total-time)]
-        (attack! total-time enemy {:id pid :health health :x x :y y}))]
+        (o/reset! (attack o/*session* total-time enemy {:id pid :health health :x x :y y})))]
 
      ::death
      [:what
@@ -348,8 +362,10 @@
       :when
       (<= health 0)
       :then
-      (o/retract! id ::e/health)
-      (o/retract! id ::distance-from-cursor)
+      (-> o/*session*
+          (o/retract id ::e/health)
+          (o/retract id ::distance-from-cursor)
+          o/reset!)
       (utils/play-sound! "death.wav")
       (when (= kind :player)
         (restart!))]}))
