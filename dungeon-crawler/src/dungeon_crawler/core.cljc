@@ -26,16 +26,7 @@
   (swap! session/*session o/insert ::session/mouse ::session/button button))
 
 (defn update-mouse-coords! [x y]
-  (-> (swap! session/*session
-             (fn [session]
-               (let [coord-data (first (o/query-all session ::session/get-world-coord-data))
-                     [wx wy] (session/get-mouse-world-coords coord-data)]
-                 (o/insert session
-                           ::session/mouse
-                           {::session/x x
-                            ::session/y y
-                            ::session/world-x wx
-                            ::session/world-y wy}))))
+  (-> (swap! session/*session o/insert ::session/mouse {::session/x x ::session/y y})
       session/get-enemy-under-cursor))
 
 (defn update-window-size! [width height]

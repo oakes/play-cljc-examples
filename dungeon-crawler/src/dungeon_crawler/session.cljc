@@ -165,19 +165,7 @@
       :when
       (not= kind :player)
       (> health 0)
-      (<= distance move/max-attack-distance)]
-
-     ::get-world-coord-data
-     [:what
-      [::window ::width window-width]
-      [::window ::height window-height]
-      [::mouse ::x mouse-x]
-      [::mouse ::y mouse-y]
-      [pid ::e/kind :player]
-      [pid ::e/width player-width]
-      [pid ::e/height player-height]
-      [pid ::e/x player-x]
-      [pid ::e/y player-y]]}))
+      (<= distance move/max-attack-distance)]}))
 
 (def rules
   (o/ruleset
@@ -247,6 +235,25 @@
                       {::camera camera
                        ::min-y min-y
                        ::max-y max-y})
+            o/reset!))]
+
+     ::update-world-coords
+     [:what
+      [::window ::width window-width]
+      [::window ::height window-height]
+      [::mouse ::x mouse-x]
+      [::mouse ::y mouse-y]
+      [pid ::e/kind :player]
+      [pid ::e/width player-width]
+      [pid ::e/height player-height]
+      [pid ::e/x player-x]
+      [pid ::e/y player-y]
+      :then
+      (let [[wx wy] (get-mouse-world-coords o/*match*)]
+        (-> o/*session*
+            (o/insert ::mouse
+                      {::world-x wx
+                       ::world-y wy})
             o/reset!))]
 
      ::update-distance-from-cursor
