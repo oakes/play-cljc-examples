@@ -227,7 +227,6 @@
       [id ::e/kind :player]
       [id ::e/x x]
       [id ::e/y y]
-      [::camera ::camera camera {:then false}]
       :then
       (let [{:keys [camera min-y max-y]} (update-camera width height x y)]
         (-> o/*session*
