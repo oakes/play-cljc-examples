@@ -79,21 +79,12 @@
    [wx wy]))
 
 (defn get-enemy-under-cursor [session]
-  (when-let [enemies (not-empty (o/query-all session ::get-enemy-distance-from-cursor))]
+  (when-let [enemies (not-empty (o/query-all session ::get-enemy-near-cursor))]
     (apply min-key :distance enemies)))
 
 (defn get-enemy-near-player [session]
-  (when-let [enemies (not-empty (o/query-all session ::get-enemy-distance-from-player))]
+  (when-let [enemies (not-empty (o/query-all session ::get-enemy-near-player))]
     (apply min-key :distance enemies)))
-
-(defn get-enemy-near-player-that-can-attack [session total-time]
-  (when-let [enemies (not-empty (o/query-all session ::get-enemy-distance-from-player))]
-    (when-let [enemies (not-empty (filter (fn [{:keys [last-attack attack-delay]}]
-                                            (-> total-time
-                                                (- last-attack)
-                                                (>= attack-delay)))
-                                          enemies))]
-      (apply min-key :distance enemies))))
 
 (def queries
   (o/ruleset
@@ -140,7 +131,7 @@
       [::tiles/tiled-map ::tiles/height height]
       [::tiles/tiled-map ::tiles/entities entities]]
 
-     ::get-enemy-distance-from-cursor
+     ::get-enemy-near-cursor
      [:what
       [id ::e/kind kind]
       [id ::e/health health]
@@ -152,7 +143,7 @@
       (> health 0)
       (<= distance move/max-cursor-distance)]
 
-     ::get-enemy-distance-from-player
+     ::get-enemy-near-player
      [:what
       [id ::e/kind kind]
       [id ::e/health health]
@@ -165,7 +156,15 @@
       :when
       (not= kind :player)
       (> health 0)
-      (<= distance move/max-attack-distance)]}))
+      (<= distance move/max-attack-distance)
+      ;; create a derived fact that contains all nearby enemies.
+      ;; we use :then-finally because it runs
+      ;; after matches of this rule are inserted *and* retracted.
+      ;; :then blocks are only run after insertions.
+      :then-finally
+      (->> (o/query-all o/*session* ::get-enemy-near-player)
+           (o/insert o/*session* ::derived ::nearby-enemies)
+           o/reset!)]}))
 
 (def rules
   (o/ruleset
@@ -357,8 +356,14 @@
       [pid ::e/health health]
       [pid ::e/x x]
       [pid ::e/y y]
+      [::derived ::nearby-enemies enemies]
       :then
-      (when-let [enemy (get-enemy-near-player-that-can-attack o/*session* total-time)]
+      (when-let [enemy (some (fn [{:keys [last-attack attack-delay] :as enemy}]
+                               (when (-> total-time
+                                         (- last-attack)
+                                         (>= attack-delay))
+                                 enemy))
+                             enemies)]
         (o/reset! (attack o/*session* total-time enemy {:id pid :health health :x x :y y})))]
 
      ::death
