@@ -60,8 +60,8 @@
   (math abs (math sqrt (+ (math pow (- x1 x2) 2)
                           (math pow (- y1 y2) 2)))))
 
-(defn get-enemy-velocity [{:keys [x-velocity y-velocity] :as enemy} player player-health distance-from-player]
-  (or (when (> player-health 0)
+(defn get-enemy-velocity [{:keys [x-velocity y-velocity] :as enemy} player distance-from-player]
+  (or (when (> (:health player) 0)
         (cond
           (< min-aggro-distance distance-from-player max-aggro-distance)
           [(cond-> max-enemy-velocity
@@ -126,10 +126,7 @@
        ::e/y (+ y y-change)})))
 
 (defn animate
-  [{:keys [x-velocity y-velocity moves] :as character}
-   animation
-   health
-   direction
+  [{:keys [x-velocity y-velocity moves animation health direction] :as character}
    total-time]
   (or (when (<= health 0)
         {::e/current-image (get-in character [:deads direction])})
