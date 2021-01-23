@@ -16,7 +16,7 @@
   (swap! session/*session
     (fn [session]
       (let [pressed-keys (-> session
-                             (o/query-all ::session/get-keys)
+                             (o/query-all ::session/keys)
                              first
                              :pressed
                              (f k))]
@@ -102,10 +102,10 @@
                                    ::session/delta (:delta-time game)})
                         o/fire-rules)))
         ;; run queries
-        entities (o/query-all session ::session/get-entity)
-        tiled-map (first (o/query-all session ::session/get-tiled-map))
-        {game-width :width game-height :height :as window} (first (o/query-all session ::session/get-window))
-        {:keys [camera min-y max-y]} (first (o/query-all session ::session/get-camera))]
+        entities (o/query-all session ::session/entity)
+        tiled-map (first (o/query-all session ::session/tiled-map))
+        {game-width :width game-height :height :as window} (first (o/query-all session ::session/window))
+        {:keys [camera min-y max-y]} (first (o/query-all session ::session/camera))]
     (when (and (pos? game-width) (pos? game-height))
       (let [scaled-tile-size (/ game-height session/vertical-tiles)]
         ;; render the background

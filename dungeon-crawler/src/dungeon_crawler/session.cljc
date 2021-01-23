@@ -79,27 +79,27 @@
    [wx wy]))
 
 (defn get-enemy-under-cursor [session]
-  (when-let [enemies (not-empty (o/query-all session ::get-enemy-near-cursor))]
+  (when-let [enemies (not-empty (o/query-all session ::enemy-near-cursor))]
     (apply min-key :distance enemies)))
 
 (defn get-enemy-near-player [session]
-  (when-let [enemies (not-empty (o/query-all session ::get-enemy-near-player))]
+  (when-let [enemies (not-empty (o/query-all session ::enemy-near-player))]
     (apply min-key :distance enemies)))
 
-(def queries
+(def rules
   (o/ruleset
-    {::get-window
+    {::window
      [:what
       [::window ::width width]
       [::window ::height height]]
 
-     ::get-camera
+     ::camera
      [:what
       [::camera ::camera camera]
       [::camera ::min-y min-y]
       [::camera ::max-y max-y]]
 
-     ::get-mouse
+     ::mouse
      [:what
       [::mouse ::x x]
       [::mouse ::y y]
@@ -107,11 +107,11 @@
       [::mouse ::world-y world-y]
       [::mouse ::button button]]
 
-     ::get-keys
+     ::keys
      [:what
       [::keys ::pressed pressed]]
 
-     ::get-entity
+     ::entity
      [:what
       [id ::e/kind kind]
       [id ::e/x x]
@@ -124,14 +124,14 @@
       [id ::e/width width]
       [id ::e/height height]]
 
-     ::get-tiled-map
+     ::tiled-map
      [:what
       [::tiles/tiled-map ::tiles/layers layers]
       [::tiles/tiled-map ::tiles/width width]
       [::tiles/tiled-map ::tiles/height height]
       [::tiles/tiled-map ::tiles/entities entities]]
 
-     ::get-enemy-near-cursor
+     ::enemy-near-cursor
      [:what
       [id ::e/kind kind]
       [id ::e/health health]
@@ -143,7 +143,7 @@
       (> health 0)
       (<= distance move/max-cursor-distance)]
 
-     ::get-enemy-near-player
+     ::enemy-near-player
      [:what
       [id ::e/kind kind]
       [id ::e/health health]
@@ -162,13 +162,11 @@
       ;; after matches of this rule are inserted *and* retracted.
       ;; :then blocks are only run after insertions.
       :then-finally
-      (->> (o/query-all o/*session* ::get-enemy-near-player)
+      (->> (o/query-all o/*session* ::enemy-near-player)
            (o/insert o/*session* ::derived ::nearby-enemies)
-           o/reset!)]}))
+           o/reset!)]
 
-(def rules
-  (o/ruleset
-    {::move-enemy
+     ::move-enemy
      [:what
       [::time ::delta delta-time]
       [pid ::e/kind :player]
@@ -382,8 +380,7 @@
         (restart!))]}))
 
 (def initial-session
-  (reduce o/add-rule (o/->session)
-          (concat queries rules)))
+  (reduce o/add-rule (o/->session) rules))
 
 ;; when this ns is reloaded, reload the session
 (when @*session
