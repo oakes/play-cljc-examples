@@ -1,7 +1,7 @@
 {:paths ["src" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.10.1"}
         tile-soup/tile-soup {:mvn/version "0.4.2"}
-        net.sekao/odoyle-rules {:mvn/version "0.6.0"}}
+        net.sekao/odoyle-rules {:mvn/version "0.7.0"}}
  :aliases {:dev {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.764"}
                               com.bhauman/figwheel-main {:mvn/version "0.2.11"}
                               paravim/paravim {:mvn/version "RELEASE"}}
