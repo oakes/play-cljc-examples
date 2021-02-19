@@ -6,7 +6,7 @@
             [play-cljc.gl.entities-2d :as e2d]
             [play-cljc.transforms :as t]
             [play-cljc.math :as m]
-            [odoyle.rules :as o #?(:clj :refer :cljs :refer-macros) [ruleset]]))
+            [odoyle.rules :as o]))
 
 (def orig-camera (e2d/->camera))
 (def vertical-tiles 7)
