@@ -73,6 +73,7 @@
 
 (defn start []
   (st/instrument)
+  (st/unstrument 'odoyle.rules/insert) ;; don't require specs for attributes
   (let [window (start/->window)
         game (pc/->game (:handle window))
         game (try
