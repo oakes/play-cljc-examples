@@ -56,7 +56,8 @@
   (let [display-width context.canvas.clientWidth
         display-height context.canvas.clientHeight]
     (set! context.canvas.width display-width)
-    (set! context.canvas.height display-height)))
+    (set! context.canvas.height display-height)
+    (c/update-window-size! display-width display-height)))
 
 (defn listen-for-resize [context]
   (events/listen js/window "resize"
