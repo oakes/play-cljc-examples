@@ -34,11 +34,11 @@
     (MemoryUtil/memFree *fb-height)
     (MemoryUtil/memFree *window-width)
     (MemoryUtil/memFree *window-height)
-    (swap! c/*state assoc :mouse-x x :mouse-y y)))
+    (c/update-mouse-coords! x y)))
 
 (defn on-mouse-click! [window button action mods]
-  (swap! c/*state assoc :mouse-button (when (= action GLFW/GLFW_PRESS)
-                                        (mousecode->keyword button))))
+  (c/update-mouse-button! (when (= action GLFW/GLFW_PRESS)
+                            (mousecode->keyword button))))
 
 (defn keycode->keyword [keycode]
   (condp = keycode
@@ -51,13 +51,14 @@
 (defn on-key! [window keycode scancode action mods]
   (when-let [k (keycode->keyword keycode)]
     (condp = action
-      GLFW/GLFW_PRESS (swap! c/*state update :pressed-keys conj k)
-      GLFW/GLFW_RELEASE (swap! c/*state update :pressed-keys disj k)
+      GLFW/GLFW_PRESS (c/update-pressed-keys! conj k)
+      GLFW/GLFW_RELEASE (c/update-pressed-keys! disj k)
       nil)))
 
 (defn on-char! [window codepoint])
 
-(defn on-resize! [window width height])
+(defn on-resize! [window width height]
+  (c/update-window-size! width height))
 
 (defn on-scroll! [window xoffset yoffset])
 
