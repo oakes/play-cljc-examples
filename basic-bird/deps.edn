@@ -1,0 +1,29 @@
+{:paths ["src" "resources"]
+ :deps {org.clojure/clojure {:mvn/version "1.10.1"}}
+ :aliases {:dev {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.764"}
+                              com.bhauman/figwheel-main {:mvn/version "0.2.11"}
+                              paravim/paravim {:mvn/version "RELEASE"}}
+                 :main-opts ["dev.clj"]}
+           :prod {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.764"}
+                               leiningen/leiningen {:mvn/version "2.9.0"}}
+                  :main-opts ["prod.clj"]}
+           :macos {:jvm-opts ["-XstartOnFirstThread"]}
+           ;; these deps are not necessary during development
+           ;; because paravim already brings them in
+           :play-cljc {:extra-deps {play-cljc/play-cljc {:mvn/version "0.9.4"}
+                                    org.lwjgl/lwjgl {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-glfw {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-opengl {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-stb {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl$natives-linux {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-glfw$natives-linux {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-opengl$natives-linux {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-stb$natives-linux {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl$natives-macos {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-glfw$natives-macos {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-opengl$natives-macos {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-stb$natives-macos {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl$natives-windows {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-glfw$natives-windows {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-opengl$natives-windows {:mvn/version "3.2.3"}
+                                    org.lwjgl/lwjgl-stb$natives-windows {:mvn/version "3.2.3"}}}}}
