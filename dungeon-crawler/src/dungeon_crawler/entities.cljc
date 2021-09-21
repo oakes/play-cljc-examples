@@ -80,7 +80,7 @@
        ::x-velocity 0
        ::y-velocity 0
        ::last-attack 0
-       ::current-animation :none
+       ::current-animation nil
        ::animation-expiration 0})))
 
 (defn ->entity [game {:keys [attrs mask-size]} {:keys [data width height]} {:keys [x y]}]

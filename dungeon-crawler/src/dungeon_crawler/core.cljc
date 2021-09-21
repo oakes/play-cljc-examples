@@ -48,7 +48,7 @@
                    ::session/y 0
                    ::session/world-x 0
                    ::session/world-y 0
-                   ::session/button :none})
+                   ::session/button nil})
         (o/insert ::session/window
                   {::session/width (utils/get-width game)
                    ::session/height (utils/get-height game)})

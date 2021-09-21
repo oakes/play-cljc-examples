@@ -282,11 +282,11 @@
       [id ::e/current-animation animation {:then false}]
       [id ::e/animation-expiration expiration]
       :when
-      (not= :none animation)
+      animation
       (> total-time expiration)
       :then
       (-> o/*session*
-          (o/insert id ::e/current-animation :none)
+          (o/insert id ::e/current-animation nil)
           o/reset!)]
 
      ::dont-overlap-tile
