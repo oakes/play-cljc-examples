@@ -11,11 +11,10 @@
   [_]
   (figwheel/-main "--build" "dev"))
 
-(require '[ui-gallery.start-dev])
-
 (defmethod task "native"
   [_]
-  (ui-gallery.start-dev/start))
+  (require '[ui-gallery.start-dev])
+  ((resolve 'ui-gallery.start-dev/start)))
 
 (defmethod task "repl"
   [_]

@@ -11,11 +11,10 @@
   [_]
   (figwheel/-main "--build" "dev"))
 
-(require '[dungeon-crawler.start-dev])
-
 (defmethod task "native"
   [_]
-  (dungeon-crawler.start-dev/start))
+  (require '[dungeon-crawler.start-dev])
+  ((resolve 'dungeon-crawler.start-dev/start)))
 
 (defmethod task "repl"
   [_]

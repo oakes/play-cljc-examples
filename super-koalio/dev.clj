@@ -11,11 +11,10 @@
   [_]
   (figwheel/-main "--build" "dev"))
 
-(require '[super-koalio.start-dev])
-
 (defmethod task "native"
   [_]
-  (super-koalio.start-dev/start))
+  (require '[super-koalio.start-dev])
+  ((resolve 'super-koalio.start-dev/start)))
 
 (defmethod task "repl"
   [_]

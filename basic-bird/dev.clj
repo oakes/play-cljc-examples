@@ -11,11 +11,10 @@
   [_]
   (figwheel/-main "--build" "dev"))
 
-(require '[basic-bird.start-dev])
-
 (defmethod task "native"
   [_]
-  (basic-bird.start-dev/start))
+  (require '[basic-bird.start-dev])
+  ((resolve 'basic-bird.start-dev/start)))
 
 (defmethod task "repl"
   [_]
