@@ -1,6 +1,7 @@
 (ns super-koalio.start
   (:require [super-koalio.core :as c]
-            [super-koalio.music :as m]
+            ;; music disabled for now
+            ;[super-koalio.music :as m]
             [play-cljc.gl.core :as pc])
   (:import  [org.lwjgl.glfw GLFW Callbacks
              GLFWCursorPosCallbackI GLFWKeyCallbackI GLFWMouseButtonCallbackI
@@ -12,6 +13,7 @@
   (:gen-class))
 
 (defn play-music! []
+  #_ ;; music is disabled for now
   (doto (AudioSystem/getClip)
     (.open (AudioSystem/getAudioInputStream (m/build-for-clj)))
     (.loop Clip/LOOP_CONTINUOUSLY)

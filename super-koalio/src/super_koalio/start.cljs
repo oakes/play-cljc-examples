@@ -2,6 +2,8 @@
   (:require [super-koalio.core :as c]
             [play-cljc.gl.core :as pc]
             [goog.events :as events])
+  ;; music disabled for now
+  #_
   (:require-macros [super-koalio.music :refer [build-for-cljs]]))
 
 (defn msec->sec [n]
@@ -75,7 +77,8 @@
 (defonce play-music? (atom false))
 
 (defonce audio (js/document.querySelector "#audio"))
-(set! (.-src audio) (build-for-cljs))
+;; music disabled for now
+;(set! (.-src audio) (build-for-cljs))
 (when @play-music? (.play audio))
 
 (defonce button (js/document.querySelector "#audio-button"))
