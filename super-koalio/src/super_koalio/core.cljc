@@ -82,8 +82,7 @@
                 tiled-map
                 tiled-map-entity
                 camera]} state
-        game-width (utils/get-width game)
-        game-height (utils/get-height game)]
+        [game-width game-height] (utils/get-size game)]
     (when (and (pos? game-width) (pos? game-height))
       (let [{:keys [map-height]} tiled-map
             scaled-tile-size (/ game-height map-height)

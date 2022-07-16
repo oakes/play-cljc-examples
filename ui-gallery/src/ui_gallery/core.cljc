@@ -43,8 +43,7 @@
                 static-entity
                 dynamic-entity
                 counter]} state
-        game-width (utils/get-width game)
-        game-height (utils/get-height game)]
+        [game-width game-height] (utils/get-size game)]
     (when (and (pos? game-width) (pos? game-height))
       ;; render the blue background
       (c/render game (update screen-entity :viewport
