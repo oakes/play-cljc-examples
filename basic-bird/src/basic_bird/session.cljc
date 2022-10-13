@@ -42,7 +42,7 @@
       :then
       ;; create a derived "all" fact that contains
       ;; all the fields above in a single map
-      (o/insert! ::player ::all o/*match*)]
+      (o/insert! ::player ::all match)]
 
      ::current-image
      [:what

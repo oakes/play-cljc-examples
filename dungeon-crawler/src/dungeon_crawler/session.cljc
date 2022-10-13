@@ -132,13 +132,13 @@
       :then
       ;; create a derived "all" fact that contains
       ;; all the fields above in a single map
-      (-> o/*session*
+      (-> session
           (o/insert ;; give the player's "all" fact a unique id
                     ;; so it can be easily distinguished when
                     ;; pulled into other rules
                     (if (= kind :player) ::player id)
                     ::all
-                    o/*match*)
+                    match)
           o/reset!)]
 
      ::tiled-map
@@ -179,8 +179,8 @@
       ;; after matches of this rule are inserted *and* retracted.
       ;; :then blocks are only run after insertions.
       :then-finally
-      (->> (o/query-all o/*session* ::enemy-near-player)
-           (o/insert o/*session* ::derived ::nearby-enemies)
+      (->> (o/query-all session ::enemy-near-player)
+           (o/insert session ::derived ::nearby-enemies)
            o/reset!)]
 
      ::move-enemy
@@ -195,7 +195,7 @@
       :then
       (let [[xv yv] (move/get-enemy-velocity enemy player distance-from-player)]
         (some->> (move/move (:x enemy) (:y enemy) xv yv delta-time)
-                 (o/insert o/*session* eid)
+                 (o/insert session eid)
                  o/reset!))]
 
      ::move-player
@@ -213,7 +213,7 @@
       :then
       (let [[xv yv] (move/get-player-velocity width height pressed mouse-x mouse-y mouse-button player)]
         (some->> (move/move (:x player) (:y player) xv yv delta-time)
-                 (o/insert o/*session* (:id player))
+                 (o/insert session (:id player))
                  o/reset!))]
 
      ::update-camera
@@ -223,7 +223,7 @@
       [::player ::all player]
       :then
       (let [{:keys [camera min-y max-y]} (update-camera width height (:x player) (:y player))]
-        (-> o/*session*
+        (-> session
             (o/insert ::camera
                       {::camera camera
                        ::min-y min-y
@@ -238,8 +238,8 @@
       [::mouse ::y mouse-y]
       [::player ::all player]
       :then
-      (let [[wx wy] (get-mouse-world-coords o/*match*)]
-        (-> o/*session*
+      (let [[wx wy] (get-mouse-world-coords match)]
+        (-> session
             (o/insert ::mouse
                       {::world-x wx
                        ::world-y wy})
@@ -252,7 +252,7 @@
       [id ::e/x x]
       [id ::e/y y]
       :then
-      (-> o/*session*
+      (-> session
           (o/insert id ::distance-from-cursor (move/calc-distance x y world-x world-y))
           o/reset!)]
 
@@ -263,7 +263,7 @@
       :when
       (not= eid ::player)
       :then
-      (-> o/*session*
+      (-> session
           (o/insert eid ::distance-from-player (move/calc-distance (:x player) (:y player) (:x enemy) (:y enemy)))
           o/reset!)]
 
@@ -273,7 +273,7 @@
       [id ::all entity {:then false}]
       :then
       (->> (move/animate entity total-time)
-           (o/insert o/*session* (:id entity))
+           (o/insert session (:id entity))
            o/reset!)]
 
      ::remove-expired-animations
@@ -285,7 +285,7 @@
       animation
       (> total-time expiration)
       :then
-      (-> o/*session*
+      (-> session
           (o/insert id ::e/current-animation nil)
           o/reset!)]
 
@@ -303,7 +303,7 @@
           (not (== 0 y-change)))
       :then
       (some->> (move/dont-overlap-tile x y x-change y-change width height layers)
-               (o/insert o/*session* id)
+               (o/insert session id)
                o/reset!)]
 
      ::player-attack
@@ -319,8 +319,8 @@
           (- (:last-attack player))
           (>= (:attack-delay player)))
       :then
-      (when-let [enemy (get-enemy-near-player o/*session*)]
-        (o/reset! (attack o/*session* total-time player enemy)))]
+      (when-let [enemy (get-enemy-near-player session)]
+        (o/reset! (attack session total-time player enemy)))]
 
      ::enemy-attack
      [:what
@@ -334,7 +334,7 @@
                                          (>= attack-delay))
                                  enemy))
                              enemies)]
-        (o/reset! (attack o/*session* total-time enemy player)))]
+        (o/reset! (attack session total-time enemy player)))]
 
      ::death
      [:what
@@ -343,7 +343,7 @@
       :when
       (<= health 0)
       :then
-      (-> o/*session*
+      (-> session
           (o/retract id ::distance-from-cursor)
           o/reset!)
       (utils/play-sound! "death.wav")
